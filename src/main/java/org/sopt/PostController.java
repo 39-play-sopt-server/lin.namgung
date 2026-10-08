@@ -31,9 +31,12 @@ public class PostController {
 	private void createPost() {
 		String title = postView.input("제목: ");
 		String content = postView.input("내용: ");
+		String author = postView.input("작성자: ");
+		int categoryNumber = postView.inputNumber("카테고리 (1.공지 2.질문 3.스터디 4.자유): ");
 
 		try {
-			postService.registerPost(title, content);
+			Category category = Category.fromNumber(categoryNumber);
+			postService.registerPost(title, content, author, category);
 			postView.printMessage("게시글이 작성되었습니다.");
 		} catch (IllegalArgumentException e) {
 			postView.printMessage(e.getMessage());

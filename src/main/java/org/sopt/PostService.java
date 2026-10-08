@@ -9,8 +9,8 @@ public class PostService {
         this.postRepository = postRepository;
     }
 
-    public void registerPost(String title, String content) {
-        Post post = new Post(title, content);
+    public void registerPost(String title, String content, String author, Category category) {
+        Post post = new Post(title, content, author, category);
         postRepository.save(post);
     }
 
@@ -20,7 +20,9 @@ public class PostService {
 
     public Post getPost(int index) {
         validateIndex(index);
-        return postRepository.findByIndex(index);
+        Post post = postRepository.findByIndex(index);
+        post.increaseViewCount();
+        return post;
     }
 
     public void changePost(int index, String title, String content){

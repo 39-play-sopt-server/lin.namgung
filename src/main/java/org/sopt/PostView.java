@@ -47,5 +47,9 @@ public class PostView {
 		System.out.println("\n=== 게시글 ===");
 		System.out.println("제목: " + post.getTitle());
 		System.out.println("내용: " + post.getContent());
+		System.out.println("작성자: " + post.getAuthor());
+		System.out.println("카테고리: " + post.getCategory().getDescription());
+		System.out.println("작성 시간: " + post.getCreatedAt());
+		System.out.println("조회수: " + post.getViewCount());
 	}
 }
