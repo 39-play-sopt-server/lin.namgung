@@ -1,25 +1,32 @@
 package org.sopt;
 
-import java.util.ArrayList;
-import java.util.List;
+import org.springframework.stereotype.Repository;
 
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+@Repository
 public class PostRepository {
-    private final List<Post> posts = new ArrayList<>();
+    private final Map<Long, Post> posts = new HashMap<>();
+    private Long sequence = 0L;
 
     public void save(Post post) {
-        posts.add(post);
+        sequence++;
+        posts.put(sequence, post);
     }
 
     public List<Post> findAll() {
-        return posts;
+        return new ArrayList<>(posts.values());
     }
 
-    public Post findByIndex(int index) {
-        return posts.get(index);
+    public Post findById(Long id) {
+        return posts.get(id);
     }
 
-    public void deleteByIndex(int index) {
-        posts.remove(index);
+    public void deleteById(Long id) {
+        posts.remove(id);
     }
 
     public int count() {

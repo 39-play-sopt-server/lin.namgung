@@ -1,85 +1,61 @@
 package org.sopt;
 
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping(path = "/api/v1/posts")
 public class PostController {
 	private final PostService postService;
-	private final PostView postView;
 
-	public PostController(PostView postView, PostService postService) {
-		this.postView = postView;
+	public PostController(PostService postService) {
 		this.postService = postService;
 	}
 
-	public void run() {
-		while (true) {
-			int command = postView.inputCommand();
-
-			switch (command) {
-				case 1 -> createPost();
-				case 2 -> postView.printPostList(postService.getAllPosts());
-				case 3 -> readPost();
-				case 4 -> updatePost();
-				case 5 -> deletePost();
-				case 6 -> {
-					postView.printMessage("프로그램을 종료합니다.");
-					return;
-				}
-				default -> postView.printMessage("잘못된 입력입니다.");
-			}
-		}
+	@PostMapping
+	public ApiResponse<?> createPost(
+			@RequestBody(required = true) CreatePostRequest request
+	) {
+		Category category = Category.fromNumber(request.category());
+		postService.registerPost(request.title(), request.content(), request.author(), category);
+		return new ApiResponse<>("게시글이 작성되었습니다.", null);
 	}
 
-	private void createPost() {
-		String title = postView.input("제목: ");
-		String content = postView.input("내용: ");
-		String author = postView.input("작성자: ");
-		int categoryNumber = postView.inputNumber("카테고리 (1.공지 2.질문 3.스터디 4.자유): ");
-
-		try {
-			Category category = Category.fromNumber(categoryNumber);
-			postService.registerPost(title, content, author, category);
-			postView.printMessage("게시글이 작성되었습니다.");
-		} catch (IllegalArgumentException e) {
-			postView.printMessage(e.getMessage());
-		}
+	@GetMapping
+	public ApiResponse<?> readPosts(
+			@RequestParam(name = "page", defaultValue = "1") int page
+	) {
+		return new ApiResponse<>("게시글 목록 조회 성공", postService.getAllPosts());
 	}
 
-	private void readPost() {
-		int index = selectPostIndex("조회할 게시글 번호: ");
-
-		try {
-			postView.printPost(postService.getPost(index));
-		} catch (PostNotFoundException e) {
-			postView.printMessage(e.getMessage());
-		}
-
+	@GetMapping(path = "/{postId}")
+	public ApiResponse<?> readPost(
+			@PathVariable(name = "postId") Long postId
+	) {
+		return new ApiResponse<>("게시글 조회 성공", postService.getPost(postId));
 	}
 
-	private void updatePost() {
-		int index = selectPostIndex("수정할 게시글 번호: ");
-
-		String newTitle = postView.input("새로운 제목: ");
-		String newContent = postView.input("새로운 내용: ");
-
-		try {
-			postService.changePost(index, newTitle, newContent);
-			postView.printMessage("게시글이 수정되었습니다.");
-		} catch (PostNotFoundException | IllegalArgumentException e) {
-			postView.printMessage(e.getMessage());
-		}
+	@PutMapping(path = "/{postId}")
+	public ApiResponse<?> updatePost(
+			@PathVariable(name = "postId") Long postId,
+			@RequestBody UpdatePostRequest request
+	) {
+		postService.changePost(postId, request.title(), request.content());
+		return new ApiResponse<>("게시글이 수정되었습니다.", null);
 	}
 
-	private void deletePost() {
-		int index = selectPostIndex("삭제할 게시글 번호: ");
-
-		try {
-			postService.removePost(index);
-			postView.printMessage("게시글이 삭제되었습니다.");
-		} catch (PostNotFoundException e) {
-			postView.printMessage(e.getMessage());
-		}
-	}
-
-	private int selectPostIndex(String message) {
-		return postView.inputNumber(message) - 1 ;
+	@DeleteMapping(path = "/{postId}")
+	public ApiResponse<?> deletePost(
+			@PathVariable(name = "postId") Long postId
+	) {
+		postService.removePost(postId);
+		return new ApiResponse<>("게시글이 삭제되었습니다.", null);
 	}
 }
