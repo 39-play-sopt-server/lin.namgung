@@ -24,6 +24,7 @@ public class Post {
 		this.viewCount = 0;
 	}
 
+
 	public String getTitle() {
 		return title;
 	}
