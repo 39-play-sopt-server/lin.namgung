@@ -27,8 +27,8 @@ public class PostController {
 	public ApiResponse<?> createPost(
 			@RequestBody(required = true) CreatePostRequest request
 	) {
-		postService.registerPost(request.title(), request.content(), request.author(), request.category());
-		return new ApiResponse<>("게시글이 작성되었습니다.", null);
+		return new ApiResponse<>("게시글이 작성되었습니다.",
+				postService.registerPost(request.title(), request.content(), request.author(), request.category()));
 	}
 
 	@GetMapping

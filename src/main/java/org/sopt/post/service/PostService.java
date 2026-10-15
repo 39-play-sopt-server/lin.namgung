@@ -2,6 +2,8 @@ package org.sopt.post.service;
 
 import org.sopt.post.domain.Category;
 import org.sopt.post.domain.Post;
+import org.sopt.post.dto.response.PostResponse;
+import org.sopt.post.dto.response.PostSummaryResponse;
 import org.sopt.post.exception.PostNotFoundException;
 import org.sopt.post.repository.PostRepository;
 import org.springframework.stereotype.Service;
@@ -17,19 +19,21 @@ public class PostService {
         this.postRepository = postRepository;
     }
 
-    public Post registerPost(String title, String content, String author, Category category) {
+    public PostResponse registerPost(String title, String content, String author, Category category) {
         Post post = Post.create(title, content, author, category);
-        return postRepository.save(post);
+        return PostResponse.from(postRepository.save(post));
     }
 
-    public List<Post> getAllPosts() {
-        return postRepository.findAll();
+    public List<PostSummaryResponse> getAllPosts() {
+        return postRepository.findAll().stream()
+                .map(PostSummaryResponse::from)
+                .toList();
     }
 
-    public Post getPost(Long id) {
+    public PostResponse getPost(Long id) {
         Post post = findPost(id);
         post.increaseViewCount();
-        return post;
+        return PostResponse.from(post);
     }
 
     public void changePost(Long id, String title, String content){
