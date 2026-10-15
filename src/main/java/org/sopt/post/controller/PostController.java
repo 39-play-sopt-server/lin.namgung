@@ -25,13 +25,14 @@ import java.net.URI;
 
 @RestController
 @RequestMapping(path = "/api/v1/posts")
-public class PostController {
+public class PostController implements PostApi {
     private final PostService postService;
 
     public PostController(PostService postService) {
         this.postService = postService;
     }
 
+    @Override
     @PostMapping
     public ResponseEntity<ApiResponse<PostResponse>> createPost(
             @RequestBody CreatePostRequest request
@@ -46,6 +47,7 @@ public class PostController {
                 .body(ApiResponse.of(SuccessCode.POST_CREATED, response));
     }
 
+    @Override
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> readPosts(
             @RequestParam(name = "category", required = false) Category category,
@@ -55,6 +57,7 @@ public class PostController {
         return ApiResponse.toResponseEntity(SuccessCode.POSTS_READ, postService.getPosts(category, page, size));
     }
 
+    @Override
     @GetMapping(path = "/{postId}")
     public ResponseEntity<ApiResponse<PostResponse>> readPost(
             @PathVariable(name = "postId") Long postId
@@ -62,6 +65,7 @@ public class PostController {
         return ApiResponse.toResponseEntity(SuccessCode.POST_READ, postService.getPost(postId));
     }
 
+    @Override
     @PatchMapping(path = "/{postId}")
     public ResponseEntity<ApiResponse<PostResponse>> updatePost(
             @PathVariable(name = "postId") Long postId,
@@ -71,6 +75,7 @@ public class PostController {
                 postService.changePost(postId, request.title(), request.content()));
     }
 
+    @Override
     @DeleteMapping(path = "/{postId}")
     public ResponseEntity<ApiResponse<Void>> deletePost(
             @PathVariable(name = "postId") Long postId
