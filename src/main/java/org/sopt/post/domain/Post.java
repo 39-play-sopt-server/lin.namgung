@@ -1,5 +1,8 @@
 package org.sopt.post.domain;
 
+import org.sopt.global.exception.ErrorCode;
+import org.sopt.post.exception.InvalidPostException;
+
 import java.time.LocalDateTime;
 
 public class Post {
@@ -15,7 +18,7 @@ public class Post {
 	public Post(String title, String content, String author, Category category) {
 		validate(title, content);
 		if (author == null || author.isBlank()) {
-			throw new IllegalArgumentException("작성자가 비어있습니다.");
+			throw new InvalidPostException(ErrorCode.INVALID_AUTHOR);
 		}
 		this.title = title;
 		this.content = content;
@@ -73,10 +76,10 @@ public class Post {
 
 	private void validate(String title, String content){
 		if (title == null || title.isBlank()) {
-			throw new IllegalArgumentException("제목이 비어있습니다.");
+			throw new InvalidPostException(ErrorCode.INVALID_TITLE);
 		}
 		if (content == null || content.isBlank()) {
-			throw new IllegalArgumentException("본문이 비어있습니다.");
+			throw new InvalidPostException(ErrorCode.INVALID_CONTENT);
 		}
 	}
 }

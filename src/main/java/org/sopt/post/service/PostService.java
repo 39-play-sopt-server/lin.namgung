@@ -45,7 +45,7 @@ public class PostService {
     private Post findPost(Long id) {
         Post post = postRepository.findById(id);
         if (post == null) {
-            throw new PostNotFoundException("존재하지 않는 게시글입니다.");
+            throw new PostNotFoundException();
         }
         return post;
     }
