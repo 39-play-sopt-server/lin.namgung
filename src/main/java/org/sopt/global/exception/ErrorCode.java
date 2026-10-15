@@ -10,6 +10,8 @@ public enum ErrorCode implements ResponseCode {
     INVALID_CATEGORY(HttpStatus.BAD_REQUEST, "카테고리가 비어있습니다."),
     EMPTY_UPDATE_REQUEST(HttpStatus.BAD_REQUEST, "수정할 제목 또는 본문을 입력해주세요."),
 
+    INVALID_PAGE_REQUEST(HttpStatus.BAD_REQUEST, "page는 1 이상, size는 1 이상 100 이하여야 합니다."),
+
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 게시글입니다."),
 
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),

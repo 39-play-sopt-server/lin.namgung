@@ -1,6 +1,7 @@
 package org.sopt.post.controller;
 
 import org.sopt.global.response.ApiResponse;
+import org.sopt.global.response.PageResponse;
 import org.sopt.global.response.SuccessCode;
 import org.sopt.post.dto.request.CreatePostRequest;
 import org.sopt.post.dto.request.UpdatePostRequest;
@@ -15,11 +16,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 import java.net.URI;
-import java.util.List;
 
 @RestController
 @RequestMapping(path = "/api/v1/posts")
@@ -45,8 +46,11 @@ public class PostController {
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<PostSummaryResponse>>> readPosts() {
-        return ApiResponse.toResponseEntity(SuccessCode.POSTS_READ, postService.getAllPosts());
+    public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> readPosts(
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size
+    ) {
+        return ApiResponse.toResponseEntity(SuccessCode.POSTS_READ, postService.getPosts(page, size));
     }
 
     @GetMapping(path = "/{postId}")
