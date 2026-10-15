@@ -13,7 +13,7 @@ public class SwaggerConfig {
         return new OpenAPI()
                 .info(new Info()
                         .title("게시판 API")
-                        .description("SOPT 서버 파트 게시판 API 명세서입니다.")
+                        .description("SOPT 서버 파트 게시판 API 명세서")
                         .version("v1"));
     }
 }
