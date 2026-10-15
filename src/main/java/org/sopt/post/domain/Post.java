@@ -42,11 +42,11 @@ public class Post {
         this.id = id;
     }
 
-    public String getTitle() {
+    public synchronized String getTitle() {
         return title;
     }
 
-    public String getContent() {
+    public synchronized String getContent() {
         return content;
     }
 
@@ -62,11 +62,11 @@ public class Post {
         return createdAt;
     }
 
-    public int getViewCount() {
+    public synchronized int getViewCount() {
         return viewCount;
     }
 
-    public void update(String title, String content) {
+    public synchronized void update(String title, String content) {
         if (title == null && content == null) {
             throw new InvalidPostException(ErrorCode.EMPTY_UPDATE_REQUEST);
         }
@@ -84,7 +84,7 @@ public class Post {
         }
     }
 
-    public void increaseViewCount() {
+    public synchronized void increaseViewCount() {
         viewCount++;
     }
 

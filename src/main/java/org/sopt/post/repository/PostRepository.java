@@ -5,20 +5,21 @@ import org.sopt.post.domain.Post;
 import org.springframework.stereotype.Repository;
 
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Stream;
 
 @Repository
 public class PostRepository {
-    private final Map<Long, Post> posts = new HashMap<>();
-    private Long sequence = 0L;
+    private final Map<Long, Post> posts = new ConcurrentHashMap<>();
+    private final AtomicLong sequence = new AtomicLong();
 
     public Post save(Post post) {
-        sequence++;
-        post.assignId(sequence);
-        posts.put(sequence, post);
+        long id = sequence.incrementAndGet();
+        post.assignId(id);
+        posts.put(id, post);
         return post;
     }
 
