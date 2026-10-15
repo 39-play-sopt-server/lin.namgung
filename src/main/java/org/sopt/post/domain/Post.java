@@ -67,10 +67,21 @@ public class Post {
     }
 
     public void update(String title, String content) {
-        validateTitle(title);
-        validateContent(content);
-        this.title = title;
-        this.content = content;
+        if (title == null && content == null) {
+            throw new InvalidPostException(ErrorCode.EMPTY_UPDATE_REQUEST);
+        }
+        if (title != null) {
+            validateTitle(title);
+        }
+        if (content != null) {
+            validateContent(content);
+        }
+        if (title != null) {
+            this.title = title;
+        }
+        if (content != null) {
+            this.content = content;
+        }
     }
 
     public void increaseViewCount() {
