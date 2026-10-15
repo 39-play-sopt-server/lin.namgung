@@ -13,9 +13,11 @@ public class PostRepository {
     private final Map<Long, Post> posts = new HashMap<>();
     private Long sequence = 0L;
 
-    public void save(Post post) {
+    public Post save(Post post) {
         sequence++;
+        post.assignId(sequence);
         posts.put(sequence, post);
+        return post;
     }
 
     public List<Post> findAll() {

@@ -3,6 +3,7 @@ package org.sopt.post.domain;
 import java.time.LocalDateTime;
 
 public class Post {
+	private Long id;
 	private String title;
 	private String content;
 
@@ -24,6 +25,17 @@ public class Post {
 		this.viewCount = 0;
 	}
 
+
+	public Long getId() {
+		return id;
+	}
+
+	public void assignId(Long id) {
+		if (this.id != null) {
+			throw new IllegalStateException("이미 id가 부여된 게시글입니다.");
+		}
+		this.id = id;
+	}
 
 	public String getTitle() {
 		return title;
