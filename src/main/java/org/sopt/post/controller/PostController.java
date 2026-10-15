@@ -1,7 +1,6 @@
 package org.sopt.post.controller;
 
 import org.sopt.global.response.ApiResponse;
-import org.sopt.post.domain.Category;
 import org.sopt.post.dto.request.CreatePostRequest;
 import org.sopt.post.dto.request.UpdatePostRequest;
 import org.sopt.post.service.PostService;
@@ -28,8 +27,7 @@ public class PostController {
 	public ApiResponse<?> createPost(
 			@RequestBody(required = true) CreatePostRequest request
 	) {
-		Category category = Category.fromNumber(request.category());
-		postService.registerPost(request.title(), request.content(), request.author(), category);
+		postService.registerPost(request.title(), request.content(), request.author(), request.category());
 		return new ApiResponse<>("게시글이 작성되었습니다.", null);
 	}
 
