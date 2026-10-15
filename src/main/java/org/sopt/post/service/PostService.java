@@ -18,7 +18,7 @@ public class PostService {
     }
 
     public Post registerPost(String title, String content, String author, Category category) {
-        Post post = new Post(title, content, author, category);
+        Post post = Post.create(title, content, author, category);
         return postRepository.save(post);
     }
 
