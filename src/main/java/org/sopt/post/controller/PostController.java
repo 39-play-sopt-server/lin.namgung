@@ -1,5 +1,10 @@
-package org.sopt;
+package org.sopt.post.controller;
 
+import org.sopt.global.response.ApiResponse;
+import org.sopt.post.domain.Category;
+import org.sopt.post.dto.request.CreatePostRequest;
+import org.sopt.post.dto.request.UpdatePostRequest;
+import org.sopt.post.service.PostService;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;

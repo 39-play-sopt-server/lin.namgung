@@ -1,5 +1,6 @@
-package org.sopt;
+package org.sopt.post.repository;
 
+import org.sopt.post.domain.Post;
 import org.springframework.stereotype.Repository;
 
 import java.util.ArrayList;

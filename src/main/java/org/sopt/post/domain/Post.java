@@ -1,4 +1,4 @@
-package org.sopt;
+package org.sopt.post.domain;
 
 import java.time.LocalDateTime;
 
