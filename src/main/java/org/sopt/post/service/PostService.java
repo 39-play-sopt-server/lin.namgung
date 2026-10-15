@@ -36,9 +36,10 @@ public class PostService {
         return PostResponse.from(post);
     }
 
-    public void changePost(Long id, String title, String content){
+    public PostResponse changePost(Long id, String title, String content) {
         Post post = findPost(id);
         post.update(title, content);
+        return PostResponse.from(post);
     }
 
     public void removePost(Long id) {
