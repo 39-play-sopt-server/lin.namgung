@@ -28,13 +28,13 @@ public class PostService {
         return PostResponse.from(postRepository.save(post));
     }
 
-    public PageResponse<PostSummaryResponse> getPosts(int page, int size) {
+    public PageResponse<PostSummaryResponse> getPosts(Category category, int page, int size) {
         validatePageRequest(page, size);
         long offset = (long) (page - 1) * size;
-        List<PostSummaryResponse> content = postRepository.findPage(offset, size).stream()
+        List<PostSummaryResponse> content = postRepository.findPage(category, offset, size).stream()
                 .map(PostSummaryResponse::from)
                 .toList();
-        return PageResponse.of(content, page, size, postRepository.count());
+        return PageResponse.of(content, page, size, postRepository.count(category));
     }
 
     public PostResponse getPost(Long id) {

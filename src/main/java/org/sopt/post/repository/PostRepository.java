@@ -1,5 +1,6 @@
 package org.sopt.post.repository;
 
+import org.sopt.post.domain.Category;
 import org.sopt.post.domain.Post;
 import org.springframework.stereotype.Repository;
 
@@ -7,6 +8,7 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 @Repository
 public class PostRepository {
@@ -20,8 +22,8 @@ public class PostRepository {
         return post;
     }
 
-    public List<Post> findPage(long offset, int limit) {
-        return posts.values().stream()
+    public List<Post> findPage(Category category, long offset, int limit) {
+        return filterByCategory(category)
                 .sorted(Comparator.comparing(Post::getId).reversed())
                 .skip(offset)
                 .limit(limit)
@@ -36,7 +38,12 @@ public class PostRepository {
         posts.remove(id);
     }
 
-    public long count() {
-        return posts.size();
+    public long count(Category category) {
+        return filterByCategory(category).count();
+    }
+
+    private Stream<Post> filterByCategory(Category category) {
+        return posts.values().stream()
+                .filter(post -> category == null || post.getCategory() == category);
     }
 }

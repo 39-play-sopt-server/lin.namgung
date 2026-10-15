@@ -3,6 +3,7 @@ package org.sopt.post.controller;
 import org.sopt.global.response.ApiResponse;
 import org.sopt.global.response.PageResponse;
 import org.sopt.global.response.SuccessCode;
+import org.sopt.post.domain.Category;
 import org.sopt.post.dto.request.CreatePostRequest;
 import org.sopt.post.dto.request.UpdatePostRequest;
 import org.sopt.post.dto.response.PostResponse;
@@ -47,10 +48,11 @@ public class PostController {
 
     @GetMapping
     public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> readPosts(
+            @RequestParam(name = "category", required = false) Category category,
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "size", defaultValue = "10") int size
     ) {
-        return ApiResponse.toResponseEntity(SuccessCode.POSTS_READ, postService.getPosts(page, size));
+        return ApiResponse.toResponseEntity(SuccessCode.POSTS_READ, postService.getPosts(category, page, size));
     }
 
     @GetMapping(path = "/{postId}")
