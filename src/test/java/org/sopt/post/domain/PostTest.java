@@ -54,16 +54,6 @@ class PostTest {
     }
 
     @Test
-    @DisplayName("id는 한 번만 부여할 수 있다")
-    void assignIdOnlyOnce() {
-        Post post = Post.create("제목", "본문", "작성자", Category.FREE);
-        post.assignId(1L);
-
-        assertEquals(1L, post.getId());
-        assertThrows(IllegalStateException.class, () -> post.assignId(2L));
-    }
-
-    @Test
     @DisplayName("제목만 수정하면 본문은 기존 값을 유지한다")
     void updateOnlyTitle() {
         Post post = Post.create("제목", "본문", "작성자", Category.FREE);

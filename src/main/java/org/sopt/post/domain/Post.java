@@ -1,18 +1,39 @@
 package org.sopt.post.domain;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
 import org.sopt.global.exception.ErrorCode;
 import org.sopt.post.exception.InvalidPostException;
 
 import java.time.LocalDateTime;
 
+@Entity
 public class Post {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
     private String title;
+
+    @Column(columnDefinition = "TEXT")
     private String content;
-    private final String author;
-    private final Category category;
-    private final LocalDateTime createdAt;
+
+    private String author;
+
+    @Enumerated(EnumType.STRING)
+    private Category category;
+
+    private LocalDateTime createdAt;
+
     private int viewCount;
+
+    protected Post() {
+    }
 
     private Post(String title, String content, String author, Category category) {
         this.title = title;
@@ -35,18 +56,11 @@ public class Post {
         return id;
     }
 
-    public void assignId(Long id) {
-        if (this.id != null) {
-            throw new IllegalStateException("이미 id가 부여된 게시글입니다.");
-        }
-        this.id = id;
-    }
-
-    public synchronized String getTitle() {
+    public String getTitle() {
         return title;
     }
 
-    public synchronized String getContent() {
+    public String getContent() {
         return content;
     }
 
@@ -62,11 +76,11 @@ public class Post {
         return createdAt;
     }
 
-    public synchronized int getViewCount() {
+    public int getViewCount() {
         return viewCount;
     }
 
-    public synchronized void update(String title, String content) {
+    public void update(String title, String content) {
         if (title == null && content == null) {
             throw new InvalidPostException(ErrorCode.EMPTY_UPDATE_REQUEST);
         }
@@ -84,7 +98,7 @@ public class Post {
         }
     }
 
-    public synchronized void increaseViewCount() {
+    public void increaseViewCount() {
         viewCount++;
     }
 

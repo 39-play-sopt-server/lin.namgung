@@ -4,64 +4,71 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.sopt.post.domain.Category;
 import org.sopt.post.domain.Post;
-
-import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
+@DataJpaTest
 class PostRepositoryTest {
-    private final PostRepository repository = new PostRepository();
+    private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "id");
+
+    @Autowired
+    private PostRepository repository;
 
     @Test
-    @DisplayName("저장하면 1부터 순서대로 id가 부여된다")
-    void saveAssignsSequentialIds() {
-        Post first = save("첫 번째", Category.FREE);
-        Post second = save("두 번째", Category.FREE);
+    @DisplayName("저장하면 id가 자동으로 부여되고 다시 조회할 수 있다")
+    void saveAssignsId() {
+        Post saved = save("제목", Category.FREE);
 
-        assertEquals(1L, first.getId());
-        assertEquals(2L, second.getId());
+        assertNotNull(saved.getId());
+        assertEquals("제목", repository.findById(saved.getId()).orElseThrow().getTitle());
     }
 
     @Test
-    @DisplayName("게시글을 삭제해도 이후 id는 이어서 부여되고 다른 게시글의 id는 바뀌지 않는다")
-    void deleteDoesNotShiftIds() {
+    @DisplayName("게시글을 삭제하면 조회되지 않고 다른 게시글은 유지된다")
+    void delete() {
         Post first = save("첫 번째", Category.FREE);
         Post second = save("두 번째", Category.FREE);
 
-        repository.deleteById(first.getId());
-        Post third = save("세 번째", Category.FREE);
+        repository.delete(first);
 
-        assertNull(repository.findById(first.getId()));
-        assertEquals(second, repository.findById(2L));
-        assertEquals(3L, third.getId());
+        assertTrue(repository.findById(first.getId()).isEmpty());
+        assertTrue(repository.findById(second.getId()).isPresent());
     }
 
     @Test
     @DisplayName("목록은 최신 글(id가 큰 글)부터 반환한다")
-    void findPageOrdersByNewestFirst() {
+    void findAllOrdersByNewestFirst() {
         save("a", Category.FREE);
         save("b", Category.FREE);
         save("c", Category.FREE);
 
-        List<Post> posts = repository.findPage(null, 0, 2);
+        Page<Post> page = repository.findAll(PageRequest.of(0, 2, NEWEST_FIRST));
 
-        assertEquals(2, posts.size());
-        assertEquals("c", posts.get(0).getTitle());
-        assertEquals("b", posts.get(1).getTitle());
+        assertEquals(2, page.getContent().size());
+        assertEquals("c", page.getContent().get(0).getTitle());
+        assertEquals("b", page.getContent().get(1).getTitle());
+        assertEquals(3, page.getTotalElements());
     }
 
     @Test
-    @DisplayName("offset만큼 건너뛰고 limit만큼 반환한다")
-    void findPageWithOffset() {
+    @DisplayName("페이지 번호만큼 건너뛰고 size만큼 반환한다")
+    void findAllSecondPage() {
         save("a", Category.FREE);
         save("b", Category.FREE);
         save("c", Category.FREE);
 
-        List<Post> posts = repository.findPage(null, 2, 2);
+        Page<Post> page = repository.findAll(PageRequest.of(1, 2, NEWEST_FIRST));
 
-        assertEquals(1, posts.size());
-        assertEquals("a", posts.get(0).getTitle());
+        assertEquals(1, page.getContent().size());
+        assertEquals("a", page.getContent().get(0).getTitle());
     }
 
     @Test
@@ -70,16 +77,17 @@ class PostRepositoryTest {
         save("공지1", Category.NOTICE);
         save("자유1", Category.FREE);
         save("공지2", Category.NOTICE);
+        Pageable pageable = PageRequest.of(0, 10, NEWEST_FIRST);
 
-        List<Post> notices = repository.findPage(Category.NOTICE, 0, 10);
+        Page<Post> notices = repository.findByCategory(Category.NOTICE, pageable);
 
-        assertEquals(2, notices.size());
-        assertEquals("공지2", notices.get(0).getTitle());
-        assertEquals("공지1", notices.get(1).getTitle());
-        assertEquals(2, repository.count(Category.NOTICE));
-        assertEquals(1, repository.count(Category.FREE));
-        assertEquals(0, repository.count(Category.STUDY));
-        assertEquals(3, repository.count(null));
+        assertEquals(2, notices.getContent().size());
+        assertEquals("공지2", notices.getContent().get(0).getTitle());
+        assertEquals("공지1", notices.getContent().get(1).getTitle());
+        assertEquals(2, notices.getTotalElements());
+        assertEquals(1, repository.findByCategory(Category.FREE, pageable).getTotalElements());
+        assertEquals(0, repository.findByCategory(Category.STUDY, pageable).getTotalElements());
+        assertEquals(3, repository.findAll(pageable).getTotalElements());
     }
 
     private Post save(String title, Category category) {
