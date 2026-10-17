@@ -1,0 +1,291 @@
+package org.sopt.post.controller;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.sopt.global.exception.GlobalExceptionHandler;
+import org.sopt.post.repository.PostRepository;
+import org.sopt.post.service.PostService;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+class PostControllerTest {
+    private static final String BASE_URL = "/api/v1/posts";
+
+    private MockMvc mockMvc;
+
+    @BeforeEach
+    void setUp() {
+        PostService postService = new PostService(new PostRepository());
+        mockMvc = MockMvcBuilders.standaloneSetup(new PostController(postService))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+    }
+
+    @Test
+    @DisplayName("게시글을 작성하면 201과 Location 헤더, 생성된 게시글을 공통 응답 형식으로 반환한다")
+    void createPost() throws Exception {
+        mockMvc.perform(post(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody("제목", "본문", "작성자", "NOTICE")))
+                .andExpect(status().isCreated())
+                .andExpect(header().exists("Location"))
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("POST_CREATED"))
+                .andExpect(jsonPath("$.message").value("게시글이 작성되었습니다."))
+                .andExpect(jsonPath("$.data.id").value(1))
+                .andExpect(jsonPath("$.data.title").value("제목"))
+                .andExpect(jsonPath("$.data.category").value("NOTICE"))
+                .andExpect(jsonPath("$.data.viewCount").value(0));
+    }
+
+    @Test
+    @DisplayName("제목이 비어있으면 400과 실패 응답 형식을 반환한다")
+    void createPostWithBlankTitle() throws Exception {
+        mockMvc.perform(post(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody(" ", "본문", "작성자", "FREE")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("INVALID_TITLE"))
+                .andExpect(jsonPath("$.message").value("제목이 비어있습니다."))
+                .andExpect(jsonPath("$.data").doesNotExist());
+    }
+
+    @Test
+    @DisplayName("카테고리를 생략하면 400을 반환한다")
+    void createPostWithoutCategory() throws Exception {
+        mockMvc.perform(post(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\": \"제목\", \"content\": \"본문\", \"author\": \"작성자\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_CATEGORY"));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 카테고리 값이면 400을 반환한다")
+    void createPostWithUnknownCategory() throws Exception {
+        mockMvc.perform(post(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody("제목", "본문", "작성자", "UNKNOWN")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST_BODY"));
+    }
+
+    @Test
+    @DisplayName("JSON 형식이 잘못되었거나 본문이 없으면 400을 반환한다")
+    void createPostWithMalformedBody() throws Exception {
+        mockMvc.perform(post(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\": "))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST_BODY"));
+
+        mockMvc.perform(post(BASE_URL).contentType(MediaType.APPLICATION_JSON))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST_BODY"));
+    }
+
+    @Test
+    @DisplayName("지원하지 않는 Content-Type이면 415를 반환한다")
+    void createPostWithUnsupportedMediaType() throws Exception {
+        mockMvc.perform(post(BASE_URL)
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("text"))
+                .andExpect(status().isUnsupportedMediaType())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("UNSUPPORTED_MEDIA_TYPE"));
+    }
+
+    @Test
+    @DisplayName("지원하지 않는 HTTP 메서드이면 405를 반환한다")
+    void methodNotAllowed() throws Exception {
+        mockMvc.perform(delete(BASE_URL))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("METHOD_NOT_ALLOWED"));
+    }
+
+    @Test
+    @DisplayName("게시글을 상세 조회할 때마다 조회수가 증가한다")
+    void readPostIncreasesViewCount() throws Exception {
+        createPost("제목", "FREE");
+
+        mockMvc.perform(get(BASE_URL + "/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("POST_READ"))
+                .andExpect(jsonPath("$.data.viewCount").value(1));
+
+        mockMvc.perform(get(BASE_URL + "/1"))
+                .andExpect(jsonPath("$.data.viewCount").value(2));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게시글을 조회하면 404를 반환한다")
+    void readPostNotFound() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/999"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("POST_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 게시글입니다."));
+    }
+
+    @Test
+    @DisplayName("게시글 id가 숫자가 아니면 400을 반환한다")
+    void readPostWithInvalidId() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+    }
+
+    @Test
+    @DisplayName("목록 조회는 최신 글부터 page, size에 맞게 반환하고 조회수를 증가시키지 않는다")
+    void readPostsWithPagination() throws Exception {
+        createPost("첫 번째", "FREE");
+        createPost("두 번째", "FREE");
+        createPost("세 번째", "FREE");
+
+        mockMvc.perform(get(BASE_URL).param("page", "1").param("size", "2"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("POSTS_READ"))
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[0].title").value("세 번째"))
+                .andExpect(jsonPath("$.data.content[0].viewCount").value(0))
+                .andExpect(jsonPath("$.data.page").value(1))
+                .andExpect(jsonPath("$.data.size").value(2))
+                .andExpect(jsonPath("$.data.totalElements").value(3))
+                .andExpect(jsonPath("$.data.totalPages").value(2));
+
+        mockMvc.perform(get(BASE_URL).param("page", "2").param("size", "2"))
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].title").value("첫 번째"));
+    }
+
+    @Test
+    @DisplayName("page, size를 생략하면 기본값(1, 10)으로 조회한다")
+    void readPostsWithDefaultPaging() throws Exception {
+        createPost("제목", "FREE");
+
+        mockMvc.perform(get(BASE_URL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.page").value(1))
+                .andExpect(jsonPath("$.data.size").value(10));
+    }
+
+    @Test
+    @DisplayName("category를 지정하면 해당 카테고리의 게시글만 조회한다")
+    void readPostsByCategory() throws Exception {
+        createPost("공지1", "NOTICE");
+        createPost("자유1", "FREE");
+        createPost("공지2", "NOTICE");
+
+        mockMvc.perform(get(BASE_URL).param("category", "NOTICE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[0].title").value("공지2"))
+                .andExpect(jsonPath("$.data.content[1].title").value("공지1"))
+                .andExpect(jsonPath("$.data.totalElements").value(2));
+    }
+
+    @Test
+    @DisplayName("page, size, category 값이 올바르지 않으면 400을 반환한다")
+    void readPostsWithInvalidParameters() throws Exception {
+        mockMvc.perform(get(BASE_URL).param("page", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PAGE_REQUEST"));
+
+        mockMvc.perform(get(BASE_URL).param("size", "101"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PAGE_REQUEST"));
+
+        mockMvc.perform(get(BASE_URL).param("page", "abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+
+        mockMvc.perform(get(BASE_URL).param("category", "UNKNOWN"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+    }
+
+    @Test
+    @DisplayName("제목만 보내서 수정하면 본문은 유지되고 수정된 게시글을 반환한다")
+    void updatePostPartially() throws Exception {
+        createPost("제목", "FREE");
+
+        mockMvc.perform(patch(BASE_URL + "/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\": \"새 제목\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("POST_UPDATED"))
+                .andExpect(jsonPath("$.data.title").value("새 제목"))
+                .andExpect(jsonPath("$.data.content").value("본문"));
+    }
+
+    @Test
+    @DisplayName("수정할 값이 없거나 빈 문자열이면 400을 반환한다")
+    void updatePostWithInvalidValues() throws Exception {
+        createPost("제목", "FREE");
+
+        mockMvc.perform(patch(BASE_URL + "/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("EMPTY_UPDATE_REQUEST"));
+
+        mockMvc.perform(patch(BASE_URL + "/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\": \"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_TITLE"));
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 게시글을 수정하면 값 검증보다 먼저 404를 반환한다")
+    void updatePostNotFound() throws Exception {
+        mockMvc.perform(patch(BASE_URL + "/999")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\": \"\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("POST_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("게시글을 삭제하면 이후 조회할 수 없다")
+    void deletePost() throws Exception {
+        createPost("제목", "FREE");
+
+        mockMvc.perform(delete(BASE_URL + "/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("POST_DELETED"));
+
+        mockMvc.perform(get(BASE_URL + "/1"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(delete(BASE_URL + "/1"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("POST_NOT_FOUND"));
+    }
+
+    private void createPost(String title, String category) throws Exception {
+        mockMvc.perform(post(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody(title, "본문", "작성자", category)))
+                .andExpect(status().isCreated());
+    }
+
+    private String createBody(String title, String content, String author, String category) {
+        return "{\"title\": \"" + title + "\", \"content\": \"" + content
+                + "\", \"author\": \"" + author + "\", \"category\": \"" + category + "\"}";
+    }
+}
