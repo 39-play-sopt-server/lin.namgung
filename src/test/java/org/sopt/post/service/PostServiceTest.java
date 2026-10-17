@@ -9,20 +9,26 @@ import org.sopt.post.dto.response.PostSummaryResponse;
 import org.sopt.post.exception.InvalidPageRequestException;
 import org.sopt.post.exception.InvalidPostException;
 import org.sopt.post.exception.PostNotFoundException;
-import org.sopt.post.repository.PostRepository;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.transaction.annotation.Transactional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+@SpringBootTest
+@Transactional
 class PostServiceTest {
-    private final PostService postService = new PostService(new PostRepository());
+    @Autowired
+    private PostService postService;
 
     @Test
     @DisplayName("게시글을 작성하면 id가 부여된 게시글 정보를 반환한다")
     void register() {
         PostResponse response = postService.registerPost("제목", "본문", "작성자", Category.STUDY);
 
-        assertEquals(1L, response.id());
+        assertNotNull(response.id());
         assertEquals("제목", response.title());
         assertEquals(Category.STUDY, response.category());
         assertEquals(0, response.viewCount());
