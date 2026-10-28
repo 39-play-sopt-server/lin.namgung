@@ -12,6 +12,7 @@ import org.sopt.post.dto.response.PostResponse;
 import org.sopt.post.dto.response.PostSummaryResponse;
 import org.sopt.post.exception.InvalidPageRequestException;
 import org.sopt.post.exception.InvalidPostException;
+import org.sopt.post.exception.InvalidSearchKeywordException;
 import org.sopt.post.exception.PostNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -188,6 +189,54 @@ class PostServiceTest {
         assertEquals("공지5", page.content().get(0).title());
         assertEquals(5, page.totalElements());
         assertEquals(2, page.totalPages());
+    }
+
+    @Test
+    @DisplayName("제목 검색은 검색어가 포함된 글만 최신순으로 페이지에 맞게 반환한다")
+    void searchPostsByTitle() {
+        postService.registerPost("스프링 입문", "본문", member.getId(), Category.STUDY);
+        postService.registerPost("자바 기초", "본문", member.getId(), Category.STUDY);
+        postService.registerPost("스프링 심화", "본문", member.getId(), Category.STUDY);
+
+        PageResponse<PostSummaryResponse> page = postService.searchPostsByTitle("스프링", 1, 1);
+
+        assertEquals(1, page.content().size());
+        assertEquals("스프링 심화", page.content().get(0).title());
+        assertEquals(2, page.totalElements());
+        assertEquals(2, page.totalPages());
+    }
+
+    @Test
+    @DisplayName("검색어 앞뒤 공백은 무시한다")
+    void searchPostsTrimsKeyword() {
+        postService.registerPost("스프링 입문", "본문", member.getId(), Category.STUDY);
+
+        assertEquals(1, postService.searchPostsByTitle("  스프링  ", 1, 10).totalElements());
+    }
+
+    @Test
+    @DisplayName("검색 결과가 없으면 빈 목록을 반환한다")
+    void searchPostsWithNoResult() {
+        postService.registerPost("스프링 입문", "본문", member.getId(), Category.STUDY);
+
+        PageResponse<PostSummaryResponse> page = postService.searchPostsByTitle("파이썬", 1, 10);
+
+        assertEquals(0, page.content().size());
+        assertEquals(0, page.totalElements());
+    }
+
+    @Test
+    @DisplayName("검색어가 null이거나 공백이면 InvalidSearchKeywordException이 발생한다")
+    void searchPostsWithBlankKeyword() {
+        assertThrows(InvalidSearchKeywordException.class, () -> postService.searchPostsByTitle(null, 1, 10));
+        assertThrows(InvalidSearchKeywordException.class, () -> postService.searchPostsByTitle("   ", 1, 10));
+    }
+
+    @Test
+    @DisplayName("제목 검색에도 page, size 범위 검증이 적용된다")
+    void searchPostsWithInvalidPageRequest() {
+        assertThrows(InvalidPageRequestException.class, () -> postService.searchPostsByTitle("스프링", 0, 10));
+        assertThrows(InvalidPageRequestException.class, () -> postService.searchPostsByTitle("스프링", 1, 101));
     }
 
     @Test

@@ -11,6 +11,7 @@ import org.sopt.post.dto.response.PostResponse;
 import org.sopt.post.dto.response.PostSummaryResponse;
 import org.sopt.post.exception.InvalidPageRequestException;
 import org.sopt.post.exception.InvalidPostException;
+import org.sopt.post.exception.InvalidSearchKeywordException;
 import org.sopt.post.exception.PostNotFoundException;
 import org.sopt.post.repository.PostRepository;
 import org.springframework.data.domain.Page;
@@ -51,10 +52,16 @@ public class PostService {
         Page<Post> result = category == null
                 ? postRepository.findAll(pageable)
                 : postRepository.findByCategory(category, pageable);
-        List<PostSummaryResponse> content = result.getContent().stream()
-                .map(PostSummaryResponse::from)
-                .toList();
-        return PageResponse.of(content, page, size, result.getTotalElements());
+        return toPageResponse(result, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<PostSummaryResponse> searchPostsByTitle(String keyword, int page, int size) {
+        String trimmed = validateKeyword(keyword);
+        validatePageRequest(page, size);
+        Pageable pageable = PageRequest.of(page - 1, size, NEWEST_FIRST);
+        Page<Post> result = postRepository.findByTitleContaining(trimmed, pageable);
+        return toPageResponse(result, page, size);
     }
 
     @Transactional
@@ -81,6 +88,20 @@ public class PostService {
         if (page < 1 || size < 1 || size > MAX_PAGE_SIZE) {
             throw new InvalidPageRequestException();
         }
+    }
+
+    private PageResponse<PostSummaryResponse> toPageResponse(Page<Post> result, int page, int size) {
+        List<PostSummaryResponse> content = result.getContent().stream()
+                .map(PostSummaryResponse::from)
+                .toList();
+        return PageResponse.of(content, page, size, result.getTotalElements());
+    }
+
+    private String validateKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            throw new InvalidSearchKeywordException();
+        }
+        return keyword.trim();
     }
 
     private Post findPost(Long id) {
