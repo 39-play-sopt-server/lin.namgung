@@ -172,6 +172,35 @@ class PostRepositoryTest {
     }
 
     @Test
+    @DisplayName("제목에 검색어가 포함된 게시글만 최신순으로 조회하고 개수도 그 기준으로 센다")
+    void searchByTitle() {
+        save("스프링 시작하기", Category.STUDY);
+        save("자바 기초", Category.STUDY);
+        save("스프링 데이터 JPA", Category.STUDY);
+        Pageable pageable = PageRequest.of(0, 10, NEWEST_FIRST);
+
+        Page<Post> result = repository.findByTitleContaining("스프링", pageable);
+
+        assertEquals(2, result.getTotalElements());
+        assertEquals("스프링 데이터 JPA", result.getContent().get(0).getTitle());
+        assertEquals("스프링 시작하기", result.getContent().get(1).getTitle());
+        assertEquals(0, repository.findByTitleContaining("파이썬", pageable).getTotalElements());
+    }
+
+    @Test
+    @DisplayName("검색어의 %와 _는 와일드카드가 아니라 문자 그대로 검색한다")
+    void searchTreatsWildcardsAsLiterals() {
+        save("할인 100% 이벤트", Category.FREE);
+        save("할인 이벤트", Category.FREE);
+        save("a_b 규칙", Category.FREE);
+        save("axb 규칙", Category.FREE);
+        Pageable pageable = PageRequest.of(0, 10, NEWEST_FIRST);
+
+        assertEquals(1, repository.findByTitleContaining("%", pageable).getTotalElements());
+        assertEquals(1, repository.findByTitleContaining("a_b", pageable).getTotalElements());
+    }
+
+    @Test
     @DisplayName("단건 조회는 작성자를 지연 로딩하고, 목록 조회는 작성자를 함께 가져온다")
     void listFetchesMemberTogether() {
         Post saved = save("제목", Category.FREE);

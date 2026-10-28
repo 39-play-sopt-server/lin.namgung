@@ -14,4 +14,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     @EntityGraph(attributePaths = "member")
     Page<Post> findByCategory(Category category, Pageable pageable);
+
+    @EntityGraph(attributePaths = "member")
+    Page<Post> findByTitleContaining(String keyword, Pageable pageable);
 }
