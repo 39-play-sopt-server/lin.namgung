@@ -1,5 +1,8 @@
 package org.sopt.post.repository;
 
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
+import jakarta.persistence.PersistenceUnitUtil;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,6 +20,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -30,6 +34,9 @@ class PostRepositoryTest {
 
     @Autowired
     private MemberRepository memberRepository;
+
+    @PersistenceContext
+    private EntityManager entityManager;
 
     private Member member;
 
@@ -123,6 +130,27 @@ class PostRepositoryTest {
         assertEquals(1, repository.findByCategory(Category.FREE, pageable).getTotalElements());
         assertEquals(0, repository.findByCategory(Category.STUDY, pageable).getTotalElements());
         assertEquals(3, repository.findAll(pageable).getTotalElements());
+    }
+
+    @Test
+    @DisplayName("단건 조회는 작성자를 지연 로딩하고, 목록 조회는 작성자를 함께 가져온다")
+    void listFetchesMemberTogether() {
+        Post saved = save("제목", Category.FREE);
+        PersistenceUnitUtil util = entityManager.getEntityManagerFactory().getPersistenceUnitUtil();
+
+        entityManager.flush();
+        entityManager.clear();
+        Post single = repository.findById(saved.getId()).orElseThrow();
+        assertFalse(util.isLoaded(single, "member"));
+
+        entityManager.clear();
+        Post fromList = repository.findAll(PageRequest.of(0, 10, NEWEST_FIRST)).getContent().get(0);
+        assertTrue(util.isLoaded(fromList, "member"));
+
+        entityManager.clear();
+        Post fromCategory = repository.findByCategory(Category.FREE, PageRequest.of(0, 10, NEWEST_FIRST))
+                .getContent().get(0);
+        assertTrue(util.isLoaded(fromCategory, "member"));
     }
 
     private Post save(String title, Category category) {
