@@ -15,6 +15,7 @@ public enum ErrorCode implements ResponseCode {
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 게시글입니다."),
 
     INVALID_MEMBER_NAME(HttpStatus.BAD_REQUEST, "회원 이름이 비어있습니다."),
+    MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다."),
 
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),
     INVALID_REQUEST_BODY(HttpStatus.BAD_REQUEST, "요청 본문을 읽을 수 없습니다. JSON 형식과 값을 확인해주세요."),
