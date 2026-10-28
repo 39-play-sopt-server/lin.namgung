@@ -43,6 +43,25 @@ class MemberTest {
         assertEquals("남궁린", member.getName());
     }
 
+    @Test
+    @DisplayName("탈퇴하지 않은 회원은 이름을 그대로 보여준다")
+    void displayNameOfActiveMember() {
+        Member member = Member.create("남궁린");
+
+        assertEquals("남궁린", member.getDisplayName());
+    }
+
+    @Test
+    @DisplayName("탈퇴한 회원은 이름 대신 '탈퇴한 회원'으로 보여준다")
+    void displayNameOfDeletedMember() {
+        Member member = Member.create("남궁린");
+
+        member.delete();
+
+        assertEquals("탈퇴한 회원", member.getDisplayName());
+        assertEquals("남궁린", member.getName());
+    }
+
     private void assertCreateFails(String name) {
         InvalidMemberException e = assertThrows(InvalidMemberException.class, () -> Member.create(name));
         assertEquals(ErrorCode.INVALID_MEMBER_NAME, e.getErrorCode());

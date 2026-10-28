@@ -11,6 +11,8 @@ import org.sopt.member.exception.InvalidMemberException;
 
 @Entity
 public class Member extends BaseEntity {
+    public static final String WITHDRAWN_NAME = "탈퇴한 회원";
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -43,6 +45,10 @@ public class Member extends BaseEntity {
 
     public boolean isDeleted() {
         return deleted;
+    }
+
+    public String getDisplayName() {
+        return deleted ? WITHDRAWN_NAME : name;
     }
 
     public void delete() {
