@@ -265,6 +265,49 @@ class PostServiceTest {
     }
 
     @Test
+    @DisplayName("필터 검색은 들어온 조건만 적용한다")
+    void filterPostsAppliesOnlyGivenConditions() {
+        Member other = memberRepository.save(Member.create("다른 작성자"));
+        postService.registerPost("스프링 공지", "본문", member.getId(), Category.NOTICE);
+        postService.registerPost("스프링 공부", "본문", member.getId(), Category.STUDY);
+        postService.registerPost("자바 공부", "본문", other.getId(), Category.STUDY);
+
+        assertEquals(3, postService.filterPosts(null, null, null, 1, 10).totalElements());
+        assertEquals(2, postService.filterPosts(member.getId(), null, null, 1, 10).totalElements());
+        assertEquals(2, postService.filterPosts(null, Category.STUDY, null, 1, 10).totalElements());
+        assertEquals(1, postService.filterPosts(member.getId(), Category.STUDY, null, 1, 10).totalElements());
+        assertEquals(1, postService.filterPosts(member.getId(), Category.STUDY, "스프링", 1, 10).totalElements());
+    }
+
+    @Test
+    @DisplayName("필터 검색의 제목은 선택이라서 공백이면 조건에서 제외한다")
+    void filterPostsIgnoresBlankTitle() {
+        postService.registerPost("스프링 공지", "본문", member.getId(), Category.NOTICE);
+
+        assertEquals(1, postService.filterPosts(member.getId(), null, "   ", 1, 10).totalElements());
+    }
+
+    @Test
+    @DisplayName("탈퇴한 회원의 글도 작성자 id로 필터링할 수 있고 작성자는 '탈퇴한 회원'으로 보인다")
+    void filterPostsOfWithdrawnMember() {
+        postService.registerPost("제목", "본문", member.getId(), Category.FREE);
+        member.delete();
+        memberRepository.flush();
+
+        PageResponse<PostSummaryResponse> page = postService.filterPosts(member.getId(), null, null, 1, 10);
+
+        assertEquals(1, page.totalElements());
+        assertEquals("탈퇴한 회원", page.content().get(0).author());
+    }
+
+    @Test
+    @DisplayName("필터 검색에도 page, size 범위 검증이 적용된다")
+    void filterPostsWithInvalidPageRequest() {
+        assertThrows(InvalidPageRequestException.class, () -> postService.filterPosts(null, null, null, 0, 10));
+        assertThrows(InvalidPageRequestException.class, () -> postService.filterPosts(null, null, null, 1, 101));
+    }
+
+    @Test
     @DisplayName("page는 1 이상, size는 1 이상 100 이하여야 한다")
     void getPostsWithInvalidPageRequest() {
         assertThrows(InvalidPageRequestException.class, () -> postService.getPosts(null, 0, 10));

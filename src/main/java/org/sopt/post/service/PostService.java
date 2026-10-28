@@ -15,10 +15,12 @@ import org.sopt.post.exception.InvalidPostException;
 import org.sopt.post.exception.InvalidSearchKeywordException;
 import org.sopt.post.exception.PostNotFoundException;
 import org.sopt.post.repository.PostRepository;
+import org.sopt.post.repository.PostSpecifications;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -69,6 +71,25 @@ public class PostService {
         Pageable pageable = PageRequest.of(page - 1, size, NEWEST_FIRST);
         Page<Post> result = postRepository.findByTitleContaining(trimmed, pageable);
         return toPageResponse(result, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<PostSummaryResponse> filterPosts(
+            Long memberId, Category category, String title, int page, int size
+    ) {
+        validatePageRequest(page, size);
+        Specification<Post> spec = PostSpecifications.alwaysTrue();
+        if (memberId != null) {
+            spec = spec.and(PostSpecifications.hasMember(memberId));
+        }
+        if (category != null) {
+            spec = spec.and(PostSpecifications.hasCategory(category));
+        }
+        if (title != null && !title.isBlank()) {
+            spec = spec.and(PostSpecifications.titleContains(title.trim()));
+        }
+        Pageable pageable = PageRequest.of(page - 1, size, NEWEST_FIRST);
+        return toPageResponse(postRepository.findAll(spec, pageable), page, size);
     }
 
     @Transactional
