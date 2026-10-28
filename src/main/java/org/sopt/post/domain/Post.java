@@ -35,6 +35,8 @@ public class Post extends BaseEntity {
 
     private int viewCount;
 
+    private int likeCount;
+
     protected Post() {
     }
 
@@ -44,6 +46,7 @@ public class Post extends BaseEntity {
         this.member = member;
         this.category = category;
         this.viewCount = 0;
+        this.likeCount = 0;
     }
 
     public static Post create(String title, String content, Member member, Category category) {
@@ -78,6 +81,10 @@ public class Post extends BaseEntity {
         return viewCount;
     }
 
+    public int getLikeCount() {
+        return likeCount;
+    }
+
     public void update(String title, String content) {
         if (title == null && content == null) {
             throw new InvalidPostException(ErrorCode.EMPTY_UPDATE_REQUEST);
@@ -98,6 +105,16 @@ public class Post extends BaseEntity {
 
     public void increaseViewCount() {
         viewCount++;
+    }
+
+    public void increaseLikeCount() {
+        likeCount++;
+    }
+
+    public void decreaseLikeCount() {
+        if (likeCount > 0) {
+            likeCount--;
+        }
     }
 
     private static void validateTitle(String title) {

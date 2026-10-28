@@ -109,6 +109,36 @@ class PostTest {
         assertEquals(2, post.getViewCount());
     }
 
+    @Test
+    @DisplayName("게시글을 생성하면 좋아요 수는 0이다")
+    void createStartsWithZeroLikes() {
+        Post post = Post.create("제목", "본문", member, Category.FREE);
+
+        assertEquals(0, post.getLikeCount());
+    }
+
+    @Test
+    @DisplayName("좋아요 수를 증가, 감소시키면 1씩 늘고 줄어든다")
+    void changeLikeCount() {
+        Post post = Post.create("제목", "본문", member, Category.FREE);
+
+        post.increaseLikeCount();
+        post.increaseLikeCount();
+        post.decreaseLikeCount();
+
+        assertEquals(1, post.getLikeCount());
+    }
+
+    @Test
+    @DisplayName("좋아요 수는 0 아래로 내려가지 않는다")
+    void likeCountNeverNegative() {
+        Post post = Post.create("제목", "본문", member, Category.FREE);
+
+        post.decreaseLikeCount();
+
+        assertEquals(0, post.getLikeCount());
+    }
+
     private void assertCreateFails(
             String title, String content, Member writer, Category category, ErrorCode expected
     ) {
