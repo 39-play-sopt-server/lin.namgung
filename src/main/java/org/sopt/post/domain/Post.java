@@ -8,14 +8,23 @@ import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
 import org.sopt.global.entity.BaseEntity;
 import org.sopt.global.exception.ErrorCode;
 import org.sopt.member.domain.Member;
 import org.sopt.post.exception.InvalidPostException;
 
 @Entity
+@Table(
+        name = "post",
+        indexes = {
+                @Index(name = "idx_post_title", columnList = "title"),
+                @Index(name = "idx_post_created_at", columnList = "created_at, id")
+        }
+)
 public class Post extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
