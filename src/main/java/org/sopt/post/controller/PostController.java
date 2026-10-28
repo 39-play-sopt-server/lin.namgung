@@ -38,7 +38,7 @@ public class PostController implements PostApi {
             @RequestBody CreatePostRequest request
     ) {
         PostResponse response = postService.registerPost(
-                request.title(), request.content(), request.author(), request.category());
+                request.title(), request.content(), request.memberId(), request.category());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{postId}")
                 .buildAndExpand(response.id())

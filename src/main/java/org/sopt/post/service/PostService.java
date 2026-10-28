@@ -1,11 +1,16 @@
 package org.sopt.post.service;
 
+import org.sopt.global.exception.ErrorCode;
 import org.sopt.global.response.PageResponse;
+import org.sopt.member.domain.Member;
+import org.sopt.member.exception.MemberNotFoundException;
+import org.sopt.member.repository.MemberRepository;
 import org.sopt.post.domain.Category;
 import org.sopt.post.domain.Post;
 import org.sopt.post.dto.response.PostResponse;
 import org.sopt.post.dto.response.PostSummaryResponse;
 import org.sopt.post.exception.InvalidPageRequestException;
+import org.sopt.post.exception.InvalidPostException;
 import org.sopt.post.exception.PostNotFoundException;
 import org.sopt.post.repository.PostRepository;
 import org.springframework.data.domain.Page;
@@ -23,14 +28,17 @@ public class PostService {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final PostRepository postRepository;
+    private final MemberRepository memberRepository;
 
-    public PostService(PostRepository postRepository) {
+    public PostService(PostRepository postRepository, MemberRepository memberRepository) {
         this.postRepository = postRepository;
+        this.memberRepository = memberRepository;
     }
 
     @Transactional
-    public PostResponse registerPost(String title, String content, String author, Category category) {
-        Post post = Post.create(title, content, author, category);
+    public PostResponse registerPost(String title, String content, Long memberId, Category category) {
+        Member member = findActiveMember(memberId);
+        Post post = Post.create(title, content, member, category);
         return PostResponse.from(postRepository.save(post));
     }
 
@@ -76,5 +84,13 @@ public class PostService {
     private Post findPost(Long id) {
         return postRepository.findById(id)
                 .orElseThrow(PostNotFoundException::new);
+    }
+
+    private Member findActiveMember(Long memberId) {
+        if (memberId == null) {
+            throw new InvalidPostException(ErrorCode.INVALID_AUTHOR);
+        }
+        return memberRepository.findByIdAndDeletedFalse(memberId)
+                .orElseThrow(MemberNotFoundException::new);
     }
 }

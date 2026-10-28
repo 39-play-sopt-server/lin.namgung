@@ -5,7 +5,7 @@ import org.sopt.post.domain.Category;
 public record CreatePostRequest(
         String title,
         String content,
-        String author,
+        Long memberId,
         Category category
 ) {
 }

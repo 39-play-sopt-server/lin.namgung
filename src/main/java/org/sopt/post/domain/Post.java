@@ -4,11 +4,15 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import org.sopt.global.entity.BaseEntity;
 import org.sopt.global.exception.ErrorCode;
+import org.sopt.member.domain.Member;
 import org.sopt.post.exception.InvalidPostException;
 
 @Entity
@@ -22,7 +26,9 @@ public class Post extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    private String author;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "member_id", nullable = false)
+    private Member member;
 
     @Enumerated(EnumType.STRING)
     private Category category;
@@ -32,20 +38,20 @@ public class Post extends BaseEntity {
     protected Post() {
     }
 
-    private Post(String title, String content, String author, Category category) {
+    private Post(String title, String content, Member member, Category category) {
         this.title = title;
         this.content = content;
-        this.author = author;
+        this.member = member;
         this.category = category;
         this.viewCount = 0;
     }
 
-    public static Post create(String title, String content, String author, Category category) {
+    public static Post create(String title, String content, Member member, Category category) {
         validateTitle(title);
         validateContent(content);
-        validateAuthor(author);
+        validateMember(member);
         validateCategory(category);
-        return new Post(title, content, author, category);
+        return new Post(title, content, member, category);
     }
 
     public Long getId() {
@@ -60,8 +66,8 @@ public class Post extends BaseEntity {
         return content;
     }
 
-    public String getAuthor() {
-        return author;
+    public Member getMember() {
+        return member;
     }
 
     public Category getCategory() {
@@ -106,8 +112,8 @@ public class Post extends BaseEntity {
         }
     }
 
-    private static void validateAuthor(String author) {
-        if (author == null || author.isBlank()) {
+    private static void validateMember(Member member) {
+        if (member == null) {
             throw new InvalidPostException(ErrorCode.INVALID_AUTHOR);
         }
     }

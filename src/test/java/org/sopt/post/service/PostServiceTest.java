@@ -1,8 +1,12 @@
 package org.sopt.post.service;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.sopt.global.response.PageResponse;
+import org.sopt.member.domain.Member;
+import org.sopt.member.exception.MemberNotFoundException;
+import org.sopt.member.repository.MemberRepository;
 import org.sopt.post.domain.Category;
 import org.sopt.post.dto.response.PostResponse;
 import org.sopt.post.dto.response.PostSummaryResponse;
@@ -23,10 +27,20 @@ class PostServiceTest {
     @Autowired
     private PostService postService;
 
+    @Autowired
+    private MemberRepository memberRepository;
+
+    private Member member;
+
+    @BeforeEach
+    void setUp() {
+        member = memberRepository.save(Member.create("작성자"));
+    }
+
     @Test
     @DisplayName("게시글을 작성하면 id가 부여된 게시글 정보를 반환한다")
     void register() {
-        PostResponse response = postService.registerPost("제목", "본문", "작성자", Category.STUDY);
+        PostResponse response = postService.registerPost("제목", "본문", member.getId(),Category.STUDY);
 
         assertNotNull(response.id());
         assertEquals("제목", response.title());
@@ -35,9 +49,31 @@ class PostServiceTest {
     }
 
     @Test
+    @DisplayName("게시글을 작성하면 응답의 작성자는 회원의 이름이다")
+    void registerShowsMemberName() {
+        PostResponse response = postService.registerPost("제목", "본문", member.getId(), Category.FREE);
+
+        assertEquals("작성자", response.author());
+    }
+
+    @Test
+    @DisplayName("존재하지 않는 회원으로는 게시글을 작성할 수 없다")
+    void registerWithUnknownMember() {
+        assertThrows(MemberNotFoundException.class,
+                () -> postService.registerPost("제목", "본문", 999999L, Category.FREE));
+    }
+
+    @Test
+    @DisplayName("회원 id가 없으면 InvalidPostException이 발생한다")
+    void registerWithoutMemberId() {
+        assertThrows(InvalidPostException.class,
+                () -> postService.registerPost("제목", "본문", null, Category.FREE));
+    }
+
+    @Test
     @DisplayName("게시글을 상세 조회할 때마다 조회수가 1씩 증가한다")
     void getPostIncreasesViewCount() {
-        PostResponse created = postService.registerPost("제목", "본문", "작성자", Category.FREE);
+        PostResponse created = postService.registerPost("제목", "본문", member.getId(),Category.FREE);
 
         assertEquals(1, postService.getPost(created.id()).viewCount());
         assertEquals(2, postService.getPost(created.id()).viewCount());
@@ -47,7 +83,7 @@ class PostServiceTest {
     @Test
     @DisplayName("목록 조회는 조회수를 증가시키지 않는다")
     void getPostsDoesNotIncreaseViewCount() {
-        PostResponse created = postService.registerPost("제목", "본문", "작성자", Category.FREE);
+        PostResponse created = postService.registerPost("제목", "본문", member.getId(),Category.FREE);
 
         postService.getPosts(null, 1, 10);
         postService.getPosts(null, 1, 10);
@@ -70,7 +106,7 @@ class PostServiceTest {
     @Test
     @DisplayName("수정은 전달한 필드만 바꾼다")
     void changePostPartially() {
-        PostResponse created = postService.registerPost("제목", "본문", "작성자", Category.FREE);
+        PostResponse created = postService.registerPost("제목", "본문", member.getId(),Category.FREE);
 
         PostResponse changed = postService.changePost(created.id(), "새 제목", null);
 
@@ -81,7 +117,7 @@ class PostServiceTest {
     @Test
     @DisplayName("수정할 값이 없으면 InvalidPostException이 발생한다")
     void changePostWithNothing() {
-        PostResponse created = postService.registerPost("제목", "본문", "작성자", Category.FREE);
+        PostResponse created = postService.registerPost("제목", "본문", member.getId(),Category.FREE);
 
         assertThrows(InvalidPostException.class, () -> postService.changePost(created.id(), null, null));
     }
@@ -89,7 +125,7 @@ class PostServiceTest {
     @Test
     @DisplayName("삭제한 게시글은 더 이상 조회할 수 없다")
     void removePost() {
-        PostResponse created = postService.registerPost("제목", "본문", "작성자", Category.FREE);
+        PostResponse created = postService.registerPost("제목", "본문", member.getId(),Category.FREE);
 
         postService.removePost(created.id());
 
@@ -101,7 +137,7 @@ class PostServiceTest {
     @DisplayName("페이지네이션은 최신 글부터 page, size에 맞게 잘라서 반환한다")
     void getPostsWithPagination() {
         for (int i = 1; i <= 25; i++) {
-            postService.registerPost("제목" + i, "본문", "작성자", Category.FREE);
+            postService.registerPost("제목" + i, "본문", member.getId(),Category.FREE);
         }
 
         PageResponse<PostSummaryResponse> firstPage = postService.getPosts(null, 1, 10);
@@ -121,8 +157,8 @@ class PostServiceTest {
     @DisplayName("카테고리와 페이지네이션을 함께 사용하면 전체 개수도 카테고리 기준이다")
     void getPostsWithCategory() {
         for (int i = 1; i <= 5; i++) {
-            postService.registerPost("공지" + i, "본문", "작성자", Category.NOTICE);
-            postService.registerPost("자유" + i, "본문", "작성자", Category.FREE);
+            postService.registerPost("공지" + i, "본문", member.getId(),Category.NOTICE);
+            postService.registerPost("자유" + i, "본문", member.getId(),Category.FREE);
         }
 
         PageResponse<PostSummaryResponse> page = postService.getPosts(Category.NOTICE, 1, 3);

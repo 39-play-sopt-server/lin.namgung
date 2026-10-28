@@ -1,8 +1,11 @@
 package org.sopt.post.repository;
 
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.sopt.global.config.JpaAuditingConfig;
+import org.sopt.member.domain.Member;
+import org.sopt.member.repository.MemberRepository;
 import org.sopt.post.domain.Category;
 import org.sopt.post.domain.Post;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,6 +28,16 @@ class PostRepositoryTest {
     @Autowired
     private PostRepository repository;
 
+    @Autowired
+    private MemberRepository memberRepository;
+
+    private Member member;
+
+    @BeforeEach
+    void setUp() {
+        member = memberRepository.save(Member.create("작성자"));
+    }
+
     @Test
     @DisplayName("저장하면 id가 자동으로 부여되고 다시 조회할 수 있다")
     void saveAssignsId() {
@@ -32,6 +45,17 @@ class PostRepositoryTest {
 
         assertNotNull(saved.getId());
         assertEquals("제목", repository.findById(saved.getId()).orElseThrow().getTitle());
+    }
+
+    @Test
+    @DisplayName("게시글은 작성자(회원)를 참조해서 저장된다")
+    void saveReferencesMember() {
+        Post saved = save("제목", Category.FREE);
+
+        Post found = repository.findById(saved.getId()).orElseThrow();
+
+        assertEquals(member.getId(), found.getMember().getId());
+        assertEquals("작성자", found.getMember().getName());
     }
 
     @Test
@@ -102,6 +126,6 @@ class PostRepositoryTest {
     }
 
     private Post save(String title, Category category) {
-        return repository.save(Post.create(title, "본문", "작성자", category));
+        return repository.save(Post.create(title, "본문", member, category));
     }
 }

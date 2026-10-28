@@ -19,7 +19,7 @@ public record PostResponse(
                 post.getId(),
                 post.getTitle(),
                 post.getContent(),
-                post.getAuthor(),
+                post.getMember().getDisplayName(),
                 post.getCategory(),
                 post.getCreatedAt(),
                 post.getViewCount()

@@ -17,7 +17,7 @@ public record PostSummaryResponse(
         return new PostSummaryResponse(
                 post.getId(),
                 post.getTitle(),
-                post.getAuthor(),
+                post.getMember().getDisplayName(),
                 post.getCategory(),
                 post.getCreatedAt(),
                 post.getViewCount()
