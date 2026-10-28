@@ -69,6 +69,30 @@ public interface PostApi {
             int size
     );
 
+    @Operation(
+            summary = "게시글 필터 검색",
+            description = "작성자 id, 카테고리, 제목 중 입력한 조건만 적용해 최신 글부터 조회합니다. "
+                    + "조건을 모두 생략하면 전체 게시글을 조회하고, 제목이 비어있으면 제목 조건은 무시합니다."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200", description = "필터 검색 성공 (결과가 없으면 빈 목록)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400", description = "memberId, category 형식이 올바르지 않거나 page, size가 범위를 벗어남")
+    })
+    ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> filterPosts(
+            @Parameter(description = "작성자(회원) id. 생략하면 작성자 조건 없음", example = "1")
+            Long memberId,
+            @Parameter(description = "카테고리 (NOTICE, QUESTION, STUDY, FREE). 생략하면 카테고리 조건 없음")
+            Category category,
+            @Parameter(description = "제목 검색어 (선택)", example = "스프링")
+            String title,
+            @Parameter(description = "페이지 번호 (1부터 시작)", example = "1")
+            int page,
+            @Parameter(description = "페이지 크기 (1 이상 100 이하)", example = "10")
+            int size
+    );
+
     @Operation(summary = "게시글 상세 조회", description = "게시글을 조회하며, 조회할 때마다 조회수가 1 증가합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(

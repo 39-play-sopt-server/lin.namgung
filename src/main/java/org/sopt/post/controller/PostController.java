@@ -69,6 +69,19 @@ public class PostController implements PostApi {
     }
 
     @Override
+    @GetMapping(path = "/filter")
+    public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> filterPosts(
+            @RequestParam(name = "memberId", required = false) Long memberId,
+            @RequestParam(name = "category", required = false) Category category,
+            @RequestParam(name = "title", required = false) String title,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size
+    ) {
+        return ApiResponse.toResponseEntity(SuccessCode.POSTS_READ,
+                postService.filterPosts(memberId, category, title, page, size));
+    }
+
+    @Override
     @GetMapping(path = "/{postId}")
     public ResponseEntity<ApiResponse<PostResponse>> readPost(
             @PathVariable(name = "postId") Long postId

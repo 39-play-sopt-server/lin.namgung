@@ -239,6 +239,78 @@ class PostControllerTest {
     }
 
     @Test
+    @DisplayName("필터 검색은 작성자와 카테고리를 함께 적용해 최신순으로 반환한다")
+    void filterPostsByMemberAndCategory() throws Exception {
+        Long otherId = memberRepository.save(Member.create("다른 작성자")).getId();
+        createPost("공지", "NOTICE");
+        createPost("스터디 1", "STUDY");
+        createPost("스터디 2", "STUDY");
+        mockMvc.perform(post(BASE_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody("남의 스터디", "본문", otherId, "STUDY")));
+
+        mockMvc.perform(get(BASE_URL + "/filter")
+                        .param("memberId", String.valueOf(memberId))
+                        .param("category", "STUDY"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("POSTS_READ"))
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[0].title").value("스터디 2"))
+                .andExpect(jsonPath("$.data.content[1].title").value("스터디 1"))
+                .andExpect(jsonPath("$.data.totalElements").value(2));
+    }
+
+    @Test
+    @DisplayName("필터 검색은 제목을 선택 조건으로 함께 쓸 수 있다")
+    void filterPostsWithTitle() throws Exception {
+        createPost("스프링 공부", "STUDY");
+        createPost("자바 공부", "STUDY");
+
+        mockMvc.perform(get(BASE_URL + "/filter")
+                        .param("category", "STUDY")
+                        .param("title", "스프링"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].title").value("스프링 공부"));
+    }
+
+    @Test
+    @DisplayName("필터 조건을 모두 생략하면 전체 게시글을 반환한다")
+    void filterPostsWithoutConditions() throws Exception {
+        createPost("첫 번째", "FREE");
+        createPost("두 번째", "NOTICE");
+
+        mockMvc.perform(get(BASE_URL + "/filter"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(2));
+    }
+
+    @Test
+    @DisplayName("조건에 맞는 글이 없으면 200과 빈 목록을 반환한다")
+    void filterPostsWithNoResult() throws Exception {
+        createPost("공지", "NOTICE");
+
+        mockMvc.perform(get(BASE_URL + "/filter")
+                        .param("memberId", "999999")
+                        .param("category", "NOTICE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0))
+                .andExpect(jsonPath("$.data.totalElements").value(0));
+    }
+
+    @Test
+    @DisplayName("필터 검색에서 memberId나 category 형식이 잘못되면 400을 반환한다")
+    void filterPostsWithInvalidParameter() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/filter").param("memberId", "abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+
+        mockMvc.perform(get(BASE_URL + "/filter").param("category", "UNKNOWN"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+    }
+
+    @Test
     @DisplayName("작성자가 탈퇴해도 게시글은 남고 상세 조회에서 작성자는 '탈퇴한 회원'으로 보인다")
     void readPostOfWithdrawnMember() throws Exception {
         createPost("제목", "FREE");
