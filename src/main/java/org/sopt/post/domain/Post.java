@@ -7,13 +7,12 @@ import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import org.sopt.global.entity.BaseEntity;
 import org.sopt.global.exception.ErrorCode;
 import org.sopt.post.exception.InvalidPostException;
 
-import java.time.LocalDateTime;
-
 @Entity
-public class Post {
+public class Post extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -28,8 +27,6 @@ public class Post {
     @Enumerated(EnumType.STRING)
     private Category category;
 
-    private LocalDateTime createdAt;
-
     private int viewCount;
 
     protected Post() {
@@ -40,7 +37,6 @@ public class Post {
         this.content = content;
         this.author = author;
         this.category = category;
-        this.createdAt = LocalDateTime.now();
         this.viewCount = 0;
     }
 
@@ -70,10 +66,6 @@ public class Post {
 
     public Category getCategory() {
         return category;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
     }
 
     public int getViewCount() {

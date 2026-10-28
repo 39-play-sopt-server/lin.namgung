@@ -6,14 +6,13 @@ import org.sopt.global.exception.ErrorCode;
 import org.sopt.post.exception.InvalidPostException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class PostTest {
 
     @Test
-    @DisplayName("게시글을 생성하면 조회수는 0이고 id는 아직 부여되지 않는다")
+    @DisplayName("게시글을 생성하면 조회수는 0이고 id와 생성일은 저장되기 전까지 부여되지 않는다")
     void create() {
         Post post = Post.create("제목", "본문", "작성자", Category.FREE);
 
@@ -23,7 +22,7 @@ class PostTest {
         assertEquals(Category.FREE, post.getCategory());
         assertEquals(0, post.getViewCount());
         assertNull(post.getId());
-        assertNotNull(post.getCreatedAt());
+        assertNull(post.getCreatedAt());
     }
 
     @Test

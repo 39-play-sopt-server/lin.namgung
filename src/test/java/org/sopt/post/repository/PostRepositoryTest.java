@@ -2,10 +2,12 @@ package org.sopt.post.repository;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.sopt.global.config.JpaAuditingConfig;
 import org.sopt.post.domain.Category;
 import org.sopt.post.domain.Post;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -16,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest
+@Import(JpaAuditingConfig.class)
 class PostRepositoryTest {
     private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "id");
 
@@ -29,6 +32,14 @@ class PostRepositoryTest {
 
         assertNotNull(saved.getId());
         assertEquals("제목", repository.findById(saved.getId()).orElseThrow().getTitle());
+    }
+
+    @Test
+    @DisplayName("저장하면 생성일이 자동으로 기록된다")
+    void saveRecordsCreatedAt() {
+        Post saved = save("제목", Category.FREE);
+
+        assertNotNull(saved.getCreatedAt());
     }
 
     @Test
