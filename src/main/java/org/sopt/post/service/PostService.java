@@ -2,6 +2,7 @@ package org.sopt.post.service;
 
 import org.sopt.global.exception.ErrorCode;
 import org.sopt.global.response.PageResponse;
+import org.sopt.like.repository.PostLikeRepository;
 import org.sopt.member.domain.Member;
 import org.sopt.member.exception.MemberNotFoundException;
 import org.sopt.member.repository.MemberRepository;
@@ -32,10 +33,16 @@ public class PostService {
 
     private final PostRepository postRepository;
     private final MemberRepository memberRepository;
+    private final PostLikeRepository postLikeRepository;
 
-    public PostService(PostRepository postRepository, MemberRepository memberRepository) {
+    public PostService(
+            PostRepository postRepository,
+            MemberRepository memberRepository,
+            PostLikeRepository postLikeRepository
+    ) {
         this.postRepository = postRepository;
         this.memberRepository = memberRepository;
+        this.postLikeRepository = postLikeRepository;
     }
 
     @Transactional
@@ -81,6 +88,7 @@ public class PostService {
     @Transactional
     public void removePost(Long id) {
         Post post = findPost(id);
+        postLikeRepository.deleteAllByPostId(id);
         postRepository.delete(post);
     }
 

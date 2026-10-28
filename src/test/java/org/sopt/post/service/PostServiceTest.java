@@ -4,6 +4,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.sopt.global.response.PageResponse;
+import org.sopt.like.domain.PostLike;
+import org.sopt.like.repository.PostLikeRepository;
 import org.sopt.member.domain.Member;
 import org.sopt.member.exception.MemberNotFoundException;
 import org.sopt.member.repository.MemberRepository;
@@ -14,6 +16,7 @@ import org.sopt.post.exception.InvalidPageRequestException;
 import org.sopt.post.exception.InvalidPostException;
 import org.sopt.post.exception.InvalidSearchKeywordException;
 import org.sopt.post.exception.PostNotFoundException;
+import org.sopt.post.repository.PostRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,6 +33,12 @@ class PostServiceTest {
 
     @Autowired
     private MemberRepository memberRepository;
+
+    @Autowired
+    private PostRepository postRepository;
+
+    @Autowired
+    private PostLikeRepository postLikeRepository;
 
     private Member member;
 
@@ -153,6 +162,22 @@ class PostServiceTest {
 
         assertThrows(PostNotFoundException.class, () -> postService.getPost(created.id()));
         assertThrows(PostNotFoundException.class, () -> postService.removePost(created.id()));
+    }
+
+    @Test
+    @DisplayName("좋아요가 달린 게시글도 삭제할 수 있고, 그 글의 좋아요만 함께 삭제된다")
+    void removePostWithLikes() {
+        PostResponse target = postService.registerPost("지울 글", "본문", member.getId(), Category.FREE);
+        PostResponse other = postService.registerPost("남길 글", "본문", member.getId(), Category.FREE);
+        Member liker = memberRepository.save(Member.create("좋아요 누른 회원"));
+        postLikeRepository.save(PostLike.create(postRepository.findById(target.id()).orElseThrow(), liker));
+        postLikeRepository.save(PostLike.create(postRepository.findById(other.id()).orElseThrow(), liker));
+
+        postService.removePost(target.id());
+
+        assertEquals(0, postLikeRepository.countByPostId(target.id()));
+        assertEquals(1, postLikeRepository.countByPostId(other.id()));
+        assertThrows(PostNotFoundException.class, () -> postService.getPost(target.id()));
     }
 
     @Test
