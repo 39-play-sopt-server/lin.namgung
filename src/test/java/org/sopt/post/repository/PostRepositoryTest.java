@@ -19,6 +19,8 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 
+import java.time.LocalDateTime;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -27,7 +29,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @DataJpaTest
 @Import(JpaAuditingConfig.class)
 class PostRepositoryTest {
-    private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "id");
+    private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "createdAt")
+            .and(Sort.by(Sort.Direction.DESC, "id"));
 
     @Autowired
     private PostRepository repository;
@@ -98,6 +101,42 @@ class PostRepositoryTest {
         assertEquals("c", page.getContent().get(0).getTitle());
         assertEquals("b", page.getContent().get(1).getTitle());
         assertEquals(3, page.getTotalElements());
+    }
+
+    @Test
+    @DisplayName("정렬 기준은 id가 아니라 생성일이다")
+    void findAllOrdersByCreatedAtNotId() {
+        Post first = save("먼저 저장", Category.FREE);
+        save("나중에 저장", Category.FREE);
+        entityManager.flush();
+        entityManager.createNativeQuery("update post set created_at = ?1 where id = ?2")
+                .setParameter(1, LocalDateTime.now().plusDays(1))
+                .setParameter(2, first.getId())
+                .executeUpdate();
+        entityManager.clear();
+
+        Page<Post> page = repository.findAll(PageRequest.of(0, 10, NEWEST_FIRST));
+
+        assertEquals("먼저 저장", page.getContent().get(0).getTitle());
+        assertEquals("나중에 저장", page.getContent().get(1).getTitle());
+    }
+
+    @Test
+    @DisplayName("생성일이 같으면 id가 큰 글이 먼저 나온다")
+    void findAllBreaksTiesById() {
+        Post first = save("a", Category.FREE);
+        Post second = save("b", Category.FREE);
+        entityManager.flush();
+        LocalDateTime same = LocalDateTime.now();
+        entityManager.createNativeQuery("update post set created_at = ?1")
+                .setParameter(1, same)
+                .executeUpdate();
+        entityManager.clear();
+
+        Page<Post> page = repository.findAll(PageRequest.of(0, 10, NEWEST_FIRST));
+
+        assertEquals(second.getId(), page.getContent().get(0).getId());
+        assertEquals(first.getId(), page.getContent().get(1).getId());
     }
 
     @Test

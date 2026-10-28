@@ -26,6 +26,8 @@ import java.util.List;
 @Service
 public class PostService {
     private static final int MAX_PAGE_SIZE = 100;
+    private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "createdAt")
+            .and(Sort.by(Sort.Direction.DESC, "id"));
 
     private final PostRepository postRepository;
     private final MemberRepository memberRepository;
@@ -45,7 +47,7 @@ public class PostService {
     @Transactional(readOnly = true)
     public PageResponse<PostSummaryResponse> getPosts(Category category, int page, int size) {
         validatePageRequest(page, size);
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "id"));
+        Pageable pageable = PageRequest.of(page - 1, size, NEWEST_FIRST);
         Page<Post> result = category == null
                 ? postRepository.findAll(pageable)
                 : postRepository.findByCategory(category, pageable);
