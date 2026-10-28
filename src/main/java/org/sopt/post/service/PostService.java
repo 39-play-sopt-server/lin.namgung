@@ -87,9 +87,11 @@ public class PostService {
 
     @Transactional
     public void removePost(Long id) {
-        Post post = findPost(id);
+        if (!postRepository.existsById(id)) {
+            throw new PostNotFoundException();
+        }
         postLikeRepository.deleteAllByPostId(id);
-        postRepository.delete(post);
+        postRepository.deleteById(id);
     }
 
     private void validatePageRequest(int page, int size) {

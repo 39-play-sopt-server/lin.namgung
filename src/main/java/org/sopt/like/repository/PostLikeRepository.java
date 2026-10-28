@@ -15,7 +15,7 @@ public interface PostLikeRepository extends JpaRepository<PostLike, Long> {
 
     long countByPostId(Long postId);
 
-    @Modifying
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("delete from PostLike l where l.post.id = :postId")
     void deleteAllByPostId(@Param("postId") Long postId);
 }
