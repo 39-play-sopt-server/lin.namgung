@@ -15,6 +15,9 @@ public enum ErrorCode implements ResponseCode {
 
     POST_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 게시글입니다."),
 
+    ALREADY_LIKED(HttpStatus.CONFLICT, "이미 좋아요를 누른 게시글입니다."),
+    LIKE_NOT_FOUND(HttpStatus.NOT_FOUND, "좋아요를 누르지 않은 게시글입니다."),
+
     INVALID_MEMBER_NAME(HttpStatus.BAD_REQUEST, "회원 이름이 비어있습니다."),
     MEMBER_NOT_FOUND(HttpStatus.NOT_FOUND, "존재하지 않는 회원입니다."),
 
