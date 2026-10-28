@@ -190,6 +190,42 @@ class PostControllerTest {
     }
 
     @Test
+    @DisplayName("작성자가 탈퇴해도 게시글은 남고 상세 조회에서 작성자는 '탈퇴한 회원'으로 보인다")
+    void readPostOfWithdrawnMember() throws Exception {
+        createPost("제목", "FREE");
+        withdrawMember();
+
+        mockMvc.perform(get(BASE_URL + "/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("제목"))
+                .andExpect(jsonPath("$.data.author").value("탈퇴한 회원"));
+    }
+
+    @Test
+    @DisplayName("작성자가 탈퇴해도 목록에서 글은 유지되고 작성자는 '탈퇴한 회원'으로 보인다")
+    void readPostsOfWithdrawnMember() throws Exception {
+        createPost("제목", "FREE");
+        withdrawMember();
+
+        mockMvc.perform(get(BASE_URL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.content[0].author").value("탈퇴한 회원"));
+    }
+
+    @Test
+    @DisplayName("탈퇴한 회원으로는 게시글을 작성할 수 없다")
+    void createPostWithWithdrawnMember() throws Exception {
+        withdrawMember();
+
+        mockMvc.perform(post(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody("제목", "본문", memberId, "FREE")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
+    }
+
+    @Test
     @DisplayName("존재하지 않는 게시글을 조회하면 404를 반환한다")
     void readPostNotFound() throws Exception {
         mockMvc.perform(get(BASE_URL + "/999"))
@@ -341,6 +377,12 @@ class PostControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(createBody(title, "본문", memberId,category)))
                 .andExpect(status().isCreated());
+    }
+
+    private void withdrawMember() {
+        Member member = memberRepository.findById(memberId).orElseThrow();
+        member.delete();
+        memberRepository.save(member);
     }
 
     private String createBody(String title, String content, Long writerId, String category) {

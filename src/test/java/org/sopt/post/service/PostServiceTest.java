@@ -64,6 +64,27 @@ class PostServiceTest {
     }
 
     @Test
+    @DisplayName("탈퇴한 회원으로는 게시글을 작성할 수 없다")
+    void registerWithWithdrawnMember() {
+        member.delete();
+        memberRepository.flush();
+
+        assertThrows(MemberNotFoundException.class,
+                () -> postService.registerPost("제목", "본문", member.getId(), Category.FREE));
+    }
+
+    @Test
+    @DisplayName("작성자가 탈퇴하면 기존 게시글은 유지되고 작성자는 '탈퇴한 회원'으로 보인다")
+    void postsRemainAfterMemberWithdraws() {
+        PostResponse created = postService.registerPost("제목", "본문", member.getId(), Category.FREE);
+        member.delete();
+        memberRepository.flush();
+
+        assertEquals("탈퇴한 회원", postService.getPost(created.id()).author());
+        assertEquals("탈퇴한 회원", postService.getPosts(null, 1, 10).content().get(0).author());
+    }
+
+    @Test
     @DisplayName("회원 id가 없으면 InvalidPostException이 발생한다")
     void registerWithoutMemberId() {
         assertThrows(InvalidPostException.class,
