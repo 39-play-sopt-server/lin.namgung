@@ -104,6 +104,15 @@ class PostRepositoryTest {
     }
 
     @Test
+    @DisplayName("잠금 조회는 글을 반환하고, 없는 글이면 비어 있다")
+    void findByIdForUpdate() {
+        Post saved = save("제목", Category.FREE);
+
+        assertEquals(saved.getId(), repository.findByIdForUpdate(saved.getId()).orElseThrow().getId());
+        assertTrue(repository.findByIdForUpdate(999999L).isEmpty());
+    }
+
+    @Test
     @DisplayName("정렬 기준은 id가 아니라 생성일이다")
     void findAllOrdersByCreatedAtNotId() {
         Post first = save("먼저 저장", Category.FREE);
