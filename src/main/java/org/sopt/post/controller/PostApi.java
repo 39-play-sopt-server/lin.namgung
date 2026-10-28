@@ -50,6 +50,25 @@ public interface PostApi {
             int size
     );
 
+    @Operation(
+            summary = "게시글 제목 검색",
+            description = "제목에 검색어가 포함된 게시글을 최신 글부터 페이지 단위로 조회합니다. 검색어 앞뒤 공백은 무시합니다."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200", description = "게시글 검색 성공 (결과가 없으면 빈 목록)"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400", description = "검색어가 비어있거나 page, size가 범위를 벗어남")
+    })
+    ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> searchPosts(
+            @Parameter(description = "제목 검색어", example = "스프링")
+            String title,
+            @Parameter(description = "페이지 번호 (1부터 시작)", example = "1")
+            int page,
+            @Parameter(description = "페이지 크기 (1 이상 100 이하)", example = "10")
+            int size
+    );
+
     @Operation(summary = "게시글 상세 조회", description = "게시글을 조회하며, 조회할 때마다 조회수가 1 증가합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(

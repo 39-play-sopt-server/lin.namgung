@@ -190,6 +190,54 @@ class PostControllerTest {
     }
 
     @Test
+    @DisplayName("제목 검색은 검색어가 포함된 글만 최신순으로 반환한다")
+    void searchPostsByTitle() throws Exception {
+        createPost("스프링 입문", "STUDY");
+        createPost("자바 기초", "STUDY");
+        createPost("스프링 심화", "STUDY");
+
+        mockMvc.perform(get(BASE_URL + "/search").param("title", "스프링"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("POSTS_READ"))
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[0].title").value("스프링 심화"))
+                .andExpect(jsonPath("$.data.content[1].title").value("스프링 입문"))
+                .andExpect(jsonPath("$.data.totalElements").value(2));
+    }
+
+    @Test
+    @DisplayName("검색 결과가 없으면 200과 빈 목록을 반환한다")
+    void searchPostsWithNoResult() throws Exception {
+        createPost("스프링 입문", "STUDY");
+
+        mockMvc.perform(get(BASE_URL + "/search").param("title", "파이썬"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0))
+                .andExpect(jsonPath("$.data.totalElements").value(0));
+    }
+
+    @Test
+    @DisplayName("검색어를 생략하거나 공백이면 400을 반환한다")
+    void searchPostsWithoutKeyword() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/search"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_SEARCH_KEYWORD"));
+
+        mockMvc.perform(get(BASE_URL + "/search").param("title", "   "))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_SEARCH_KEYWORD"));
+    }
+
+    @Test
+    @DisplayName("제목 검색에서 size가 범위를 벗어나면 400을 반환한다")
+    void searchPostsWithInvalidSize() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/search").param("title", "스프링").param("size", "101"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PAGE_REQUEST"));
+    }
+
+    @Test
     @DisplayName("작성자가 탈퇴해도 게시글은 남고 상세 조회에서 작성자는 '탈퇴한 회원'으로 보인다")
     void readPostOfWithdrawnMember() throws Exception {
         createPost("제목", "FREE");

@@ -58,6 +58,17 @@ public class PostController implements PostApi {
     }
 
     @Override
+    @GetMapping(path = "/search")
+    public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> searchPosts(
+            @RequestParam(name = "title", required = false) String title,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size
+    ) {
+        return ApiResponse.toResponseEntity(SuccessCode.POSTS_READ,
+                postService.searchPostsByTitle(title, page, size));
+    }
+
+    @Override
     @GetMapping(path = "/{postId}")
     public ResponseEntity<ApiResponse<PostResponse>> readPost(
             @PathVariable(name = "postId") Long postId
