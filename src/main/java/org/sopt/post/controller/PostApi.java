@@ -16,18 +16,24 @@ import org.springframework.http.ResponseEntity;
 @Tag(name = "게시글", description = "게시글 작성, 조회, 수정, 삭제 API")
 public interface PostApi {
 
-    @Operation(summary = "게시글 작성", description = "제목, 본문, 작성자, 카테고리로 게시글을 작성합니다.")
+    @Operation(
+            summary = "게시글 작성",
+            description = "제목, 본문, 작성자(memberId), 카테고리로 게시글을 작성합니다. 탈퇴한 회원은 작성할 수 없습니다."
+    )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "201", description = "게시글 작성 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400", description = "제목, 본문, 작성자, 카테고리가 비어있거나 요청 형식이 올바르지 않음")
+                    responseCode = "400", description = "제목, 본문, memberId, 카테고리가 비어있거나 요청 형식이 올바르지 않음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404", description = "존재하지 않거나 탈퇴한 회원")
     })
     ResponseEntity<ApiResponse<PostResponse>> createPost(CreatePostRequest request);
 
     @Operation(
             summary = "게시글 목록 조회",
-            description = "최신 글부터 페이지 단위로 조회합니다. category를 생략하면 전체 게시글을 조회합니다."
+            description = "최신 글부터 페이지 단위로 조회합니다. category를 생략하면 전체 게시글을 조회합니다. "
+                    + "작성자가 탈퇴한 글은 작성자가 '탈퇴한 회원'으로 표시됩니다."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
