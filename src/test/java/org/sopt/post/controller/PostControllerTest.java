@@ -80,7 +80,8 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.data.title").value("제목"))
                 .andExpect(jsonPath("$.data.author").value("작성자"))
                 .andExpect(jsonPath("$.data.category").value("NOTICE"))
-                .andExpect(jsonPath("$.data.viewCount").value(0));
+                .andExpect(jsonPath("$.data.viewCount").value(0))
+                .andExpect(jsonPath("$.data.likeCount").value(0));
     }
 
     @Test
@@ -305,6 +306,7 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.data.content[0].title").value("세 번째"))
                 .andExpect(jsonPath("$.data.content[0].author").value("작성자"))
                 .andExpect(jsonPath("$.data.content[0].viewCount").value(0))
+                .andExpect(jsonPath("$.data.content[0].likeCount").value(0))
                 .andExpect(jsonPath("$.data.page").value(1))
                 .andExpect(jsonPath("$.data.size").value(2))
                 .andExpect(jsonPath("$.data.totalElements").value(3))

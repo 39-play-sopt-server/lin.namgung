@@ -12,7 +12,8 @@ public record PostResponse(
         String author,
         Category category,
         LocalDateTime createdAt,
-        int viewCount
+        int viewCount,
+        int likeCount
 ) {
     public static PostResponse from(Post post) {
         return new PostResponse(
@@ -22,7 +23,8 @@ public record PostResponse(
                 post.getMember().getDisplayName(),
                 post.getCategory(),
                 post.getCreatedAt(),
-                post.getViewCount()
+                post.getViewCount(),
+                post.getLikeCount()
         );
     }
 }
