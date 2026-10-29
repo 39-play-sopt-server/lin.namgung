@@ -33,4 +33,7 @@ public interface PostRepository extends JpaRepository<Post, Long>, JpaSpecificat
 
     @EntityGraph(attributePaths = "member")
     Page<Post> findByTitleContaining(String keyword, Pageable pageable);
+
+    @EntityGraph(attributePaths = "member")
+    Page<Post> findByTitleStartingWith(String keyword, Pageable pageable);
 }

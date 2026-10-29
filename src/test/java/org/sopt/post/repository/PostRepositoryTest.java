@@ -197,6 +197,34 @@ class PostRepositoryTest {
     }
 
     @Test
+    @DisplayName("앞부분 일치 검색은 제목이 검색어로 시작하는 글만 최신순으로 조회한다")
+    void searchByTitlePrefix() {
+        save("스프링 시작하기", Category.STUDY);
+        save("자바와 스프링", Category.STUDY);
+        save("스프링 데이터 JPA", Category.STUDY);
+        Pageable pageable = PageRequest.of(0, 10, NEWEST_FIRST);
+
+        Page<Post> result = repository.findByTitleStartingWith("스프링", pageable);
+
+        assertEquals(2, result.getTotalElements());
+        assertEquals("스프링 데이터 JPA", result.getContent().get(0).getTitle());
+        assertEquals("스프링 시작하기", result.getContent().get(1).getTitle());
+    }
+
+    @Test
+    @DisplayName("앞부분 일치 검색에서도 %와 _는 문자 그대로 검색한다")
+    void searchPrefixTreatsWildcardsAsLiterals() {
+        save("100% 할인", Category.FREE);
+        save("100원 할인", Category.FREE);
+        save("a_b 규칙", Category.FREE);
+        save("axb 규칙", Category.FREE);
+        Pageable pageable = PageRequest.of(0, 10, NEWEST_FIRST);
+
+        assertEquals(1, repository.findByTitleStartingWith("100%", pageable).getTotalElements());
+        assertEquals(1, repository.findByTitleStartingWith("a_b", pageable).getTotalElements());
+    }
+
+    @Test
     @DisplayName("검색어의 %와 _는 와일드카드가 아니라 문자 그대로 검색한다")
     void searchTreatsWildcardsAsLiterals() {
         save("할인 100% 이벤트", Category.FREE);
