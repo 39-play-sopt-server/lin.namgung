@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.sopt.global.response.ApiResponse;
 import org.sopt.global.response.PageResponse;
 import org.sopt.post.domain.Category;
+import org.sopt.post.domain.SearchMatch;
 import org.sopt.post.dto.request.CreatePostRequest;
 import org.sopt.post.dto.request.UpdatePostRequest;
 import org.sopt.post.dto.response.PostResponse;
@@ -52,17 +53,20 @@ public interface PostApi {
 
     @Operation(
             summary = "게시글 제목 검색",
-            description = "제목에 검색어가 포함된 게시글을 최신 글부터 페이지 단위로 조회합니다. 검색어 앞뒤 공백은 무시합니다."
+            description = "제목에 검색어가 포함된 게시글을 최신 글부터 페이지 단위로 조회합니다. 검색어 앞뒤 공백은 무시합니다. "
+                    + "match=PREFIX이면 제목이 검색어로 시작하는 글만 조회하며, 제목 인덱스를 사용해 데이터가 많아도 빠릅니다."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200", description = "게시글 검색 성공 (결과가 없으면 빈 목록)"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400", description = "검색어가 비어있거나 page, size가 범위를 벗어남")
+                    responseCode = "400", description = "검색어가 비어있거나 match 값이 올바르지 않거나 page, size가 범위를 벗어남")
     })
     ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> searchPosts(
             @Parameter(description = "제목 검색어", example = "스프링")
             String title,
+            @Parameter(description = "검색 방식 (CONTAINS: 포함, PREFIX: 앞부분 일치). 생략하면 CONTAINS", example = "CONTAINS")
+            SearchMatch match,
             @Parameter(description = "페이지 번호 (1부터 시작)", example = "1")
             int page,
             @Parameter(description = "페이지 크기 (1 이상 100 이하)", example = "10")

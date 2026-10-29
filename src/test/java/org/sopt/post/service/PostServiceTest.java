@@ -10,6 +10,7 @@ import org.sopt.member.domain.Member;
 import org.sopt.member.exception.MemberNotFoundException;
 import org.sopt.member.repository.MemberRepository;
 import org.sopt.post.domain.Category;
+import org.sopt.post.domain.SearchMatch;
 import org.sopt.post.dto.response.PostResponse;
 import org.sopt.post.dto.response.PostSummaryResponse;
 import org.sopt.post.exception.InvalidPageRequestException;
@@ -223,7 +224,7 @@ class PostServiceTest {
         postService.registerPost("자바 기초", "본문", member.getId(), Category.STUDY);
         postService.registerPost("스프링 심화", "본문", member.getId(), Category.STUDY);
 
-        PageResponse<PostSummaryResponse> page = postService.searchPostsByTitle("스프링", 1, 1);
+        PageResponse<PostSummaryResponse> page = postService.searchPostsByTitle("스프링", SearchMatch.CONTAINS, 1, 1);
 
         assertEquals(1, page.content().size());
         assertEquals("스프링 심화", page.content().get(0).title());
@@ -232,11 +233,29 @@ class PostServiceTest {
     }
 
     @Test
+    @DisplayName("앞부분 일치 검색은 제목이 검색어로 시작하는 글만 반환한다")
+    void searchPostsByPrefix() {
+        postService.registerPost("스프링 입문", "본문", member.getId(), Category.STUDY);
+        postService.registerPost("자바와 스프링", "본문", member.getId(), Category.STUDY);
+        postService.registerPost("스프링 심화", "본문", member.getId(), Category.STUDY);
+
+        PageResponse<PostSummaryResponse> prefix =
+                postService.searchPostsByTitle("스프링", SearchMatch.PREFIX, 1, 10);
+        PageResponse<PostSummaryResponse> contains =
+                postService.searchPostsByTitle("스프링", SearchMatch.CONTAINS, 1, 10);
+
+        assertEquals(2, prefix.totalElements());
+        assertEquals("스프링 심화", prefix.content().get(0).title());
+        assertEquals("스프링 입문", prefix.content().get(1).title());
+        assertEquals(3, contains.totalElements());
+    }
+
+    @Test
     @DisplayName("검색어 앞뒤 공백은 무시한다")
     void searchPostsTrimsKeyword() {
         postService.registerPost("스프링 입문", "본문", member.getId(), Category.STUDY);
 
-        assertEquals(1, postService.searchPostsByTitle("  스프링  ", 1, 10).totalElements());
+        assertEquals(1, postService.searchPostsByTitle("  스프링  ", SearchMatch.CONTAINS, 1, 10).totalElements());
     }
 
     @Test
@@ -244,7 +263,7 @@ class PostServiceTest {
     void searchPostsWithNoResult() {
         postService.registerPost("스프링 입문", "본문", member.getId(), Category.STUDY);
 
-        PageResponse<PostSummaryResponse> page = postService.searchPostsByTitle("파이썬", 1, 10);
+        PageResponse<PostSummaryResponse> page = postService.searchPostsByTitle("파이썬", SearchMatch.CONTAINS, 1, 10);
 
         assertEquals(0, page.content().size());
         assertEquals(0, page.totalElements());
@@ -253,15 +272,15 @@ class PostServiceTest {
     @Test
     @DisplayName("검색어가 null이거나 공백이면 InvalidSearchKeywordException이 발생한다")
     void searchPostsWithBlankKeyword() {
-        assertThrows(InvalidSearchKeywordException.class, () -> postService.searchPostsByTitle(null, 1, 10));
-        assertThrows(InvalidSearchKeywordException.class, () -> postService.searchPostsByTitle("   ", 1, 10));
+        assertThrows(InvalidSearchKeywordException.class, () -> postService.searchPostsByTitle(null, SearchMatch.CONTAINS, 1, 10));
+        assertThrows(InvalidSearchKeywordException.class, () -> postService.searchPostsByTitle("   ", SearchMatch.CONTAINS, 1, 10));
     }
 
     @Test
     @DisplayName("제목 검색에도 page, size 범위 검증이 적용된다")
     void searchPostsWithInvalidPageRequest() {
-        assertThrows(InvalidPageRequestException.class, () -> postService.searchPostsByTitle("스프링", 0, 10));
-        assertThrows(InvalidPageRequestException.class, () -> postService.searchPostsByTitle("스프링", 1, 101));
+        assertThrows(InvalidPageRequestException.class, () -> postService.searchPostsByTitle("스프링", SearchMatch.CONTAINS, 0, 10));
+        assertThrows(InvalidPageRequestException.class, () -> postService.searchPostsByTitle("스프링", SearchMatch.CONTAINS, 1, 101));
     }
 
     @Test

@@ -208,6 +208,25 @@ class PostControllerTest {
     }
 
     @Test
+    @DisplayName("match=PREFIX이면 제목이 검색어로 시작하는 글만 반환한다")
+    void searchPostsByPrefix() throws Exception {
+        createPost("스프링 입문", "STUDY");
+        createPost("자바와 스프링", "STUDY");
+
+        mockMvc.perform(get(BASE_URL + "/search").param("title", "스프링").param("match", "PREFIX"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].title").value("스프링 입문"));
+    }
+
+    @Test
+    @DisplayName("match 값이 올바르지 않으면 400을 반환한다")
+    void searchPostsWithInvalidMatch() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/search").param("title", "스프링").param("match", "WRONG"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     @DisplayName("검색 결과가 없으면 200과 빈 목록을 반환한다")
     void searchPostsWithNoResult() throws Exception {
         createPost("스프링 입문", "STUDY");

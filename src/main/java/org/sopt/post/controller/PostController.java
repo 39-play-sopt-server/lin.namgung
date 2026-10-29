@@ -4,6 +4,7 @@ import org.sopt.global.response.ApiResponse;
 import org.sopt.global.response.PageResponse;
 import org.sopt.global.response.SuccessCode;
 import org.sopt.post.domain.Category;
+import org.sopt.post.domain.SearchMatch;
 import org.sopt.post.dto.request.CreatePostRequest;
 import org.sopt.post.dto.request.UpdatePostRequest;
 import org.sopt.post.dto.response.PostResponse;
@@ -61,11 +62,12 @@ public class PostController implements PostApi {
     @GetMapping(path = "/search")
     public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> searchPosts(
             @RequestParam(name = "title", required = false) String title,
+            @RequestParam(name = "match", defaultValue = "CONTAINS") SearchMatch match,
             @RequestParam(name = "page", defaultValue = "1") int page,
             @RequestParam(name = "size", defaultValue = "10") int size
     ) {
         return ApiResponse.toResponseEntity(SuccessCode.POSTS_READ,
-                postService.searchPostsByTitle(title, page, size));
+                postService.searchPostsByTitle(title, match, page, size));
     }
 
     @Override

@@ -8,6 +8,7 @@ import org.sopt.member.exception.MemberNotFoundException;
 import org.sopt.member.repository.MemberRepository;
 import org.sopt.post.domain.Category;
 import org.sopt.post.domain.Post;
+import org.sopt.post.domain.SearchMatch;
 import org.sopt.post.dto.response.PostResponse;
 import org.sopt.post.dto.response.PostSummaryResponse;
 import org.sopt.post.exception.InvalidPageRequestException;
@@ -65,11 +66,15 @@ public class PostService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<PostSummaryResponse> searchPostsByTitle(String keyword, int page, int size) {
+    public PageResponse<PostSummaryResponse> searchPostsByTitle(
+            String keyword, SearchMatch match, int page, int size
+    ) {
         String trimmed = validateKeyword(keyword);
         validatePageRequest(page, size);
         Pageable pageable = PageRequest.of(page - 1, size, NEWEST_FIRST);
-        Page<Post> result = postRepository.findByTitleContaining(trimmed, pageable);
+        Page<Post> result = match == SearchMatch.PREFIX
+                ? postRepository.findByTitleStartingWith(trimmed, pageable)
+                : postRepository.findByTitleContaining(trimmed, pageable);
         return toPageResponse(result, page, size);
     }
 
