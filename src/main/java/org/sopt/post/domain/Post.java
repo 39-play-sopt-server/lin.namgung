@@ -4,16 +4,28 @@ import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+import org.sopt.global.entity.BaseEntity;
 import org.sopt.global.exception.ErrorCode;
+import org.sopt.member.domain.Member;
 import org.sopt.post.exception.InvalidPostException;
 
-import java.time.LocalDateTime;
-
 @Entity
-public class Post {
+@Table(
+        name = "post",
+        indexes = {
+                @Index(name = "idx_post_title", columnList = "title"),
+                @Index(name = "idx_post_created_at", columnList = "created_at, id")
+        }
+)
+public class Post extends BaseEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -23,33 +35,35 @@ public class Post {
     @Column(columnDefinition = "TEXT")
     private String content;
 
-    private String author;
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "member_id", nullable = false)
+    private Member member;
 
     @Enumerated(EnumType.STRING)
     private Category category;
 
-    private LocalDateTime createdAt;
-
     private int viewCount;
+
+    private int likeCount;
 
     protected Post() {
     }
 
-    private Post(String title, String content, String author, Category category) {
+    private Post(String title, String content, Member member, Category category) {
         this.title = title;
         this.content = content;
-        this.author = author;
+        this.member = member;
         this.category = category;
-        this.createdAt = LocalDateTime.now();
         this.viewCount = 0;
+        this.likeCount = 0;
     }
 
-    public static Post create(String title, String content, String author, Category category) {
+    public static Post create(String title, String content, Member member, Category category) {
         validateTitle(title);
         validateContent(content);
-        validateAuthor(author);
+        validateMember(member);
         validateCategory(category);
-        return new Post(title, content, author, category);
+        return new Post(title, content, member, category);
     }
 
     public Long getId() {
@@ -64,20 +78,20 @@ public class Post {
         return content;
     }
 
-    public String getAuthor() {
-        return author;
+    public Member getMember() {
+        return member;
     }
 
     public Category getCategory() {
         return category;
     }
 
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
     public int getViewCount() {
         return viewCount;
+    }
+
+    public int getLikeCount() {
+        return likeCount;
     }
 
     public void update(String title, String content) {
@@ -102,6 +116,16 @@ public class Post {
         viewCount++;
     }
 
+    public void increaseLikeCount() {
+        likeCount++;
+    }
+
+    public void decreaseLikeCount() {
+        if (likeCount > 0) {
+            likeCount--;
+        }
+    }
+
     private static void validateTitle(String title) {
         if (title == null || title.isBlank()) {
             throw new InvalidPostException(ErrorCode.INVALID_TITLE);
@@ -114,8 +138,8 @@ public class Post {
         }
     }
 
-    private static void validateAuthor(String author) {
-        if (author == null || author.isBlank()) {
+    private static void validateMember(Member member) {
+        if (member == null) {
             throw new InvalidPostException(ErrorCode.INVALID_AUTHOR);
         }
     }

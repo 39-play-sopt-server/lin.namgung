@@ -5,6 +5,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.sopt.global.exception.GlobalExceptionHandler;
+import org.sopt.member.domain.Member;
+import org.sopt.member.repository.MemberRepository;
 import org.sopt.post.repository.PostRepository;
 import org.sopt.post.service.PostService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,13 +35,19 @@ class PostControllerTest {
     private PostRepository postRepository;
 
     @Autowired
+    private MemberRepository memberRepository;
+
+    @Autowired
     private JdbcTemplate jdbcTemplate;
 
     private MockMvc mockMvc;
 
+    private Long memberId;
+
     @BeforeEach
     void setUp() {
         resetPosts();
+        memberId = memberRepository.save(Member.create("작성자")).getId();
         mockMvc = MockMvcBuilders.standaloneSetup(new PostController(postService))
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
@@ -48,10 +56,12 @@ class PostControllerTest {
     @AfterEach
     void tearDown() {
         postRepository.deleteAll();
+        memberRepository.deleteAll();
     }
 
     private void resetPosts() {
         postRepository.deleteAll();
+        memberRepository.deleteAll();
         jdbcTemplate.execute("ALTER TABLE post ALTER COLUMN id RESTART WITH 1");
     }
 
@@ -60,7 +70,7 @@ class PostControllerTest {
     void createPost() throws Exception {
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody("제목", "본문", "작성자", "NOTICE")))
+                        .content(createBody("제목", "본문", memberId,"NOTICE")))
                 .andExpect(status().isCreated())
                 .andExpect(header().exists("Location"))
                 .andExpect(jsonPath("$.success").value(true))
@@ -68,8 +78,10 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.message").value("게시글이 작성되었습니다."))
                 .andExpect(jsonPath("$.data.id").value(1))
                 .andExpect(jsonPath("$.data.title").value("제목"))
+                .andExpect(jsonPath("$.data.author").value("작성자"))
                 .andExpect(jsonPath("$.data.category").value("NOTICE"))
-                .andExpect(jsonPath("$.data.viewCount").value(0));
+                .andExpect(jsonPath("$.data.viewCount").value(0))
+                .andExpect(jsonPath("$.data.likeCount").value(0));
     }
 
     @Test
@@ -77,7 +89,7 @@ class PostControllerTest {
     void createPostWithBlankTitle() throws Exception {
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody(" ", "본문", "작성자", "FREE")))
+                        .content(createBody(" ", "본문", memberId,"FREE")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("INVALID_TITLE"))
@@ -86,11 +98,33 @@ class PostControllerTest {
     }
 
     @Test
+    @DisplayName("존재하지 않는 회원이면 404를 반환한다")
+    void createPostWithUnknownMember() throws Exception {
+        mockMvc.perform(post(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody("제목", "본문", 999999L, "FREE")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("존재하지 않는 회원입니다."));
+    }
+
+    @Test
+    @DisplayName("memberId를 생략하면 400을 반환한다")
+    void createPostWithoutMemberId() throws Exception {
+        mockMvc.perform(post(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\": \"제목\", \"content\": \"본문\", \"category\": \"FREE\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_AUTHOR"));
+    }
+
+    @Test
     @DisplayName("카테고리를 생략하면 400을 반환한다")
     void createPostWithoutCategory() throws Exception {
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\": \"제목\", \"content\": \"본문\", \"author\": \"작성자\"}"))
+                        .content("{\"title\": \"제목\", \"content\": \"본문\", \"memberId\": " + memberId + "}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_CATEGORY"));
     }
@@ -100,7 +134,7 @@ class PostControllerTest {
     void createPostWithUnknownCategory() throws Exception {
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody("제목", "본문", "작성자", "UNKNOWN")))
+                        .content(createBody("제목", "본문", memberId,"UNKNOWN")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST_BODY"));
@@ -149,10 +183,186 @@ class PostControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.code").value("POST_READ"))
+                .andExpect(jsonPath("$.data.author").value("작성자"))
                 .andExpect(jsonPath("$.data.viewCount").value(1));
 
         mockMvc.perform(get(BASE_URL + "/1"))
                 .andExpect(jsonPath("$.data.viewCount").value(2));
+    }
+
+    @Test
+    @DisplayName("제목 검색은 검색어가 포함된 글만 최신순으로 반환한다")
+    void searchPostsByTitle() throws Exception {
+        createPost("스프링 입문", "STUDY");
+        createPost("자바 기초", "STUDY");
+        createPost("스프링 심화", "STUDY");
+
+        mockMvc.perform(get(BASE_URL + "/search").param("title", "스프링"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.code").value("POSTS_READ"))
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[0].title").value("스프링 심화"))
+                .andExpect(jsonPath("$.data.content[1].title").value("스프링 입문"))
+                .andExpect(jsonPath("$.data.totalElements").value(2));
+    }
+
+    @Test
+    @DisplayName("match=PREFIX이면 제목이 검색어로 시작하는 글만 반환한다")
+    void searchPostsByPrefix() throws Exception {
+        createPost("스프링 입문", "STUDY");
+        createPost("자바와 스프링", "STUDY");
+
+        mockMvc.perform(get(BASE_URL + "/search").param("title", "스프링").param("match", "PREFIX"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].title").value("스프링 입문"));
+    }
+
+    @Test
+    @DisplayName("match 값이 올바르지 않으면 400을 반환한다")
+    void searchPostsWithInvalidMatch() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/search").param("title", "스프링").param("match", "WRONG"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @DisplayName("검색 결과가 없으면 200과 빈 목록을 반환한다")
+    void searchPostsWithNoResult() throws Exception {
+        createPost("스프링 입문", "STUDY");
+
+        mockMvc.perform(get(BASE_URL + "/search").param("title", "파이썬"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0))
+                .andExpect(jsonPath("$.data.totalElements").value(0));
+    }
+
+    @Test
+    @DisplayName("검색어를 생략하거나 공백이면 400을 반환한다")
+    void searchPostsWithoutKeyword() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/search"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_SEARCH_KEYWORD"));
+
+        mockMvc.perform(get(BASE_URL + "/search").param("title", "   "))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_SEARCH_KEYWORD"));
+    }
+
+    @Test
+    @DisplayName("제목 검색에서 size가 범위를 벗어나면 400을 반환한다")
+    void searchPostsWithInvalidSize() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/search").param("title", "스프링").param("size", "101"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PAGE_REQUEST"));
+    }
+
+    @Test
+    @DisplayName("필터 검색은 작성자와 카테고리를 함께 적용해 최신순으로 반환한다")
+    void filterPostsByMemberAndCategory() throws Exception {
+        Long otherId = memberRepository.save(Member.create("다른 작성자")).getId();
+        createPost("공지", "NOTICE");
+        createPost("스터디 1", "STUDY");
+        createPost("스터디 2", "STUDY");
+        mockMvc.perform(post(BASE_URL)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createBody("남의 스터디", "본문", otherId, "STUDY")));
+
+        mockMvc.perform(get(BASE_URL + "/filter")
+                        .param("memberId", String.valueOf(memberId))
+                        .param("category", "STUDY"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value("POSTS_READ"))
+                .andExpect(jsonPath("$.data.content.length()").value(2))
+                .andExpect(jsonPath("$.data.content[0].title").value("스터디 2"))
+                .andExpect(jsonPath("$.data.content[1].title").value("스터디 1"))
+                .andExpect(jsonPath("$.data.totalElements").value(2));
+    }
+
+    @Test
+    @DisplayName("필터 검색은 제목을 선택 조건으로 함께 쓸 수 있다")
+    void filterPostsWithTitle() throws Exception {
+        createPost("스프링 공부", "STUDY");
+        createPost("자바 공부", "STUDY");
+
+        mockMvc.perform(get(BASE_URL + "/filter")
+                        .param("category", "STUDY")
+                        .param("title", "스프링"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(1))
+                .andExpect(jsonPath("$.data.content[0].title").value("스프링 공부"));
+    }
+
+    @Test
+    @DisplayName("필터 조건을 모두 생략하면 전체 게시글을 반환한다")
+    void filterPostsWithoutConditions() throws Exception {
+        createPost("첫 번째", "FREE");
+        createPost("두 번째", "NOTICE");
+
+        mockMvc.perform(get(BASE_URL + "/filter"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(2));
+    }
+
+    @Test
+    @DisplayName("조건에 맞는 글이 없으면 200과 빈 목록을 반환한다")
+    void filterPostsWithNoResult() throws Exception {
+        createPost("공지", "NOTICE");
+
+        mockMvc.perform(get(BASE_URL + "/filter")
+                        .param("memberId", "999999")
+                        .param("category", "NOTICE"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content.length()").value(0))
+                .andExpect(jsonPath("$.data.totalElements").value(0));
+    }
+
+    @Test
+    @DisplayName("필터 검색에서 memberId나 category 형식이 잘못되면 400을 반환한다")
+    void filterPostsWithInvalidParameter() throws Exception {
+        mockMvc.perform(get(BASE_URL + "/filter").param("memberId", "abc"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+
+        mockMvc.perform(get(BASE_URL + "/filter").param("category", "UNKNOWN"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
+    }
+
+    @Test
+    @DisplayName("작성자가 탈퇴해도 게시글은 남고 상세 조회에서 작성자는 '탈퇴한 회원'으로 보인다")
+    void readPostOfWithdrawnMember() throws Exception {
+        createPost("제목", "FREE");
+        withdrawMember();
+
+        mockMvc.perform(get(BASE_URL + "/1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.title").value("제목"))
+                .andExpect(jsonPath("$.data.author").value("탈퇴한 회원"));
+    }
+
+    @Test
+    @DisplayName("작성자가 탈퇴해도 목록에서 글은 유지되고 작성자는 '탈퇴한 회원'으로 보인다")
+    void readPostsOfWithdrawnMember() throws Exception {
+        createPost("제목", "FREE");
+        withdrawMember();
+
+        mockMvc.perform(get(BASE_URL))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.totalElements").value(1))
+                .andExpect(jsonPath("$.data.content[0].author").value("탈퇴한 회원"));
+    }
+
+    @Test
+    @DisplayName("탈퇴한 회원으로는 게시글을 작성할 수 없다")
+    void createPostWithWithdrawnMember() throws Exception {
+        withdrawMember();
+
+        mockMvc.perform(post(BASE_URL)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createBody("제목", "본문", memberId, "FREE")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
     }
 
     @Test
@@ -185,7 +395,9 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.code").value("POSTS_READ"))
                 .andExpect(jsonPath("$.data.content.length()").value(2))
                 .andExpect(jsonPath("$.data.content[0].title").value("세 번째"))
+                .andExpect(jsonPath("$.data.content[0].author").value("작성자"))
                 .andExpect(jsonPath("$.data.content[0].viewCount").value(0))
+                .andExpect(jsonPath("$.data.content[0].likeCount").value(0))
                 .andExpect(jsonPath("$.data.page").value(1))
                 .andExpect(jsonPath("$.data.size").value(2))
                 .andExpect(jsonPath("$.data.totalElements").value(3))
@@ -304,12 +516,18 @@ class PostControllerTest {
     private void createPost(String title, String category) throws Exception {
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody(title, "본문", "작성자", category)))
+                        .content(createBody(title, "본문", memberId,category)))
                 .andExpect(status().isCreated());
     }
 
-    private String createBody(String title, String content, String author, String category) {
+    private void withdrawMember() {
+        Member member = memberRepository.findById(memberId).orElseThrow();
+        member.delete();
+        memberRepository.save(member);
+    }
+
+    private String createBody(String title, String content, Long writerId, String category) {
         return "{\"title\": \"" + title + "\", \"content\": \"" + content
-                + "\", \"author\": \"" + author + "\", \"category\": \"" + category + "\"}";
+                + "\", \"memberId\": " + writerId + ", \"category\": \"" + category + "\"}";
     }
 }

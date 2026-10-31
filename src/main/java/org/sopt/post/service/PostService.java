@@ -1,17 +1,27 @@
 package org.sopt.post.service;
 
+import org.sopt.global.exception.ErrorCode;
 import org.sopt.global.response.PageResponse;
+import org.sopt.like.repository.PostLikeRepository;
+import org.sopt.member.domain.Member;
+import org.sopt.member.exception.MemberNotFoundException;
+import org.sopt.member.repository.MemberRepository;
 import org.sopt.post.domain.Category;
 import org.sopt.post.domain.Post;
+import org.sopt.post.domain.SearchMatch;
 import org.sopt.post.dto.response.PostResponse;
 import org.sopt.post.dto.response.PostSummaryResponse;
 import org.sopt.post.exception.InvalidPageRequestException;
+import org.sopt.post.exception.InvalidPostException;
+import org.sopt.post.exception.InvalidSearchKeywordException;
 import org.sopt.post.exception.PostNotFoundException;
 import org.sopt.post.repository.PostRepository;
+import org.sopt.post.repository.PostSpecifications;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,30 +31,70 @@ import java.util.List;
 @Service
 public class PostService {
     private static final int MAX_PAGE_SIZE = 100;
+    private static final Sort NEWEST_FIRST = Sort.by(Sort.Direction.DESC, "createdAt")
+            .and(Sort.by(Sort.Direction.DESC, "id"));
 
     private final PostRepository postRepository;
+    private final MemberRepository memberRepository;
+    private final PostLikeRepository postLikeRepository;
 
-    public PostService(PostRepository postRepository) {
+    public PostService(
+            PostRepository postRepository,
+            MemberRepository memberRepository,
+            PostLikeRepository postLikeRepository
+    ) {
         this.postRepository = postRepository;
+        this.memberRepository = memberRepository;
+        this.postLikeRepository = postLikeRepository;
     }
 
     @Transactional
-    public PostResponse registerPost(String title, String content, String author, Category category) {
-        Post post = Post.create(title, content, author, category);
+    public PostResponse registerPost(String title, String content, Long memberId, Category category) {
+        Member member = findActiveMember(memberId);
+        Post post = Post.create(title, content, member, category);
         return PostResponse.from(postRepository.save(post));
     }
 
     @Transactional(readOnly = true)
     public PageResponse<PostSummaryResponse> getPosts(Category category, int page, int size) {
         validatePageRequest(page, size);
-        Pageable pageable = PageRequest.of(page - 1, size, Sort.by(Sort.Direction.DESC, "id"));
+        Pageable pageable = PageRequest.of(page - 1, size, NEWEST_FIRST);
         Page<Post> result = category == null
                 ? postRepository.findAll(pageable)
                 : postRepository.findByCategory(category, pageable);
-        List<PostSummaryResponse> content = result.getContent().stream()
-                .map(PostSummaryResponse::from)
-                .toList();
-        return PageResponse.of(content, page, size, result.getTotalElements());
+        return toPageResponse(result, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<PostSummaryResponse> searchPostsByTitle(
+            String keyword, SearchMatch match, int page, int size
+    ) {
+        String trimmed = validateKeyword(keyword);
+        validatePageRequest(page, size);
+        Pageable pageable = PageRequest.of(page - 1, size, NEWEST_FIRST);
+        Page<Post> result = match == SearchMatch.PREFIX
+                ? postRepository.findByTitleStartingWith(trimmed, pageable)
+                : postRepository.findByTitleContaining(trimmed, pageable);
+        return toPageResponse(result, page, size);
+    }
+
+    @Transactional(readOnly = true)
+    public PageResponse<PostSummaryResponse> filterPosts(
+            Long memberId, Category category, String title, int page, int size
+    ) {
+        validatePageRequest(page, size);
+        Specification<Post> spec = PostSpecifications.alwaysTrue();
+        if (memberId != null) {
+            spec = spec.and(PostSpecifications.hasMember(memberId));
+        }
+        if (category != null) {
+            spec = spec.and(PostSpecifications.hasCategory(category));
+        }
+        if (title != null && !title.isBlank()) {
+            spec = spec.and(PostSpecifications.titleContains(title.trim()));
+        }
+        Pageable pageable = PageRequest.of(page - 1, size, NEWEST_FIRST);
+        return toPageResponse(postRepository.findAll(spec, pageable), page, size);
     }
 
     @Transactional
@@ -63,8 +113,11 @@ public class PostService {
 
     @Transactional
     public void removePost(Long id) {
-        Post post = findPost(id);
-        postRepository.delete(post);
+        if (!postRepository.existsById(id)) {
+            throw new PostNotFoundException();
+        }
+        postLikeRepository.deleteAllByPostId(id);
+        postRepository.deleteById(id);
     }
 
     private void validatePageRequest(int page, int size) {
@@ -73,8 +126,30 @@ public class PostService {
         }
     }
 
+    private PageResponse<PostSummaryResponse> toPageResponse(Page<Post> result, int page, int size) {
+        List<PostSummaryResponse> content = result.getContent().stream()
+                .map(PostSummaryResponse::from)
+                .toList();
+        return PageResponse.of(content, page, size, result.getTotalElements());
+    }
+
+    private String validateKeyword(String keyword) {
+        if (keyword == null || keyword.isBlank()) {
+            throw new InvalidSearchKeywordException();
+        }
+        return keyword.trim();
+    }
+
     private Post findPost(Long id) {
         return postRepository.findById(id)
                 .orElseThrow(PostNotFoundException::new);
+    }
+
+    private Member findActiveMember(Long memberId) {
+        if (memberId == null) {
+            throw new InvalidPostException(ErrorCode.INVALID_AUTHOR);
+        }
+        return memberRepository.findByIdAndDeletedFalse(memberId)
+                .orElseThrow(MemberNotFoundException::new);
     }
 }

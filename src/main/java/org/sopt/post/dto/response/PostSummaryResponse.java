@@ -11,16 +11,18 @@ public record PostSummaryResponse(
         String author,
         Category category,
         LocalDateTime createdAt,
-        int viewCount
+        int viewCount,
+        int likeCount
 ) {
     public static PostSummaryResponse from(Post post) {
         return new PostSummaryResponse(
                 post.getId(),
                 post.getTitle(),
-                post.getAuthor(),
+                post.getMember().getDisplayName(),
                 post.getCategory(),
                 post.getCreatedAt(),
-                post.getViewCount()
+                post.getViewCount(),
+                post.getLikeCount()
         );
     }
 }

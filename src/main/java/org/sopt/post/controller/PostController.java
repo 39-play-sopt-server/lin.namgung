@@ -4,6 +4,7 @@ import org.sopt.global.response.ApiResponse;
 import org.sopt.global.response.PageResponse;
 import org.sopt.global.response.SuccessCode;
 import org.sopt.post.domain.Category;
+import org.sopt.post.domain.SearchMatch;
 import org.sopt.post.dto.request.CreatePostRequest;
 import org.sopt.post.dto.request.UpdatePostRequest;
 import org.sopt.post.dto.response.PostResponse;
@@ -38,7 +39,7 @@ public class PostController implements PostApi {
             @RequestBody CreatePostRequest request
     ) {
         PostResponse response = postService.registerPost(
-                request.title(), request.content(), request.author(), request.category());
+                request.title(), request.content(), request.memberId(), request.category());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{postId}")
                 .buildAndExpand(response.id())
@@ -55,6 +56,31 @@ public class PostController implements PostApi {
             @RequestParam(name = "size", defaultValue = "10") int size
     ) {
         return ApiResponse.toResponseEntity(SuccessCode.POSTS_READ, postService.getPosts(category, page, size));
+    }
+
+    @Override
+    @GetMapping(path = "/search")
+    public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> searchPosts(
+            @RequestParam(name = "title", required = false) String title,
+            @RequestParam(name = "match", defaultValue = "CONTAINS") SearchMatch match,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size
+    ) {
+        return ApiResponse.toResponseEntity(SuccessCode.POSTS_READ,
+                postService.searchPostsByTitle(title, match, page, size));
+    }
+
+    @Override
+    @GetMapping(path = "/filter")
+    public ResponseEntity<ApiResponse<PageResponse<PostSummaryResponse>>> filterPosts(
+            @RequestParam(name = "memberId", required = false) Long memberId,
+            @RequestParam(name = "category", required = false) Category category,
+            @RequestParam(name = "title", required = false) String title,
+            @RequestParam(name = "page", defaultValue = "1") int page,
+            @RequestParam(name = "size", defaultValue = "10") int size
+    ) {
+        return ApiResponse.toResponseEntity(SuccessCode.POSTS_READ,
+                postService.filterPosts(memberId, category, title, page, size));
     }
 
     @Override
