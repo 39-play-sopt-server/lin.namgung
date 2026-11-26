@@ -14,6 +14,7 @@ import org.sopt.post.dto.response.PostSummaryResponse;
 import org.sopt.post.exception.InvalidPageRequestException;
 import org.sopt.post.exception.InvalidPostException;
 import org.sopt.post.exception.InvalidSearchKeywordException;
+import org.sopt.post.exception.NotPostOwnerException;
 import org.sopt.post.exception.PostNotFoundException;
 import org.sopt.post.repository.PostRepository;
 import org.sopt.post.repository.PostSpecifications;
@@ -105,19 +106,25 @@ public class PostService {
     }
 
     @Transactional
-    public PostResponse changePost(Long id, String title, String content) {
+    public PostResponse changePost(Long id, Long memberId, String title, String content) {
         Post post = findPost(id);
+        validateOwner(post, memberId);
         post.update(title, content);
         return PostResponse.from(post);
     }
 
     @Transactional
-    public void removePost(Long id) {
-        if (!postRepository.existsById(id)) {
-            throw new PostNotFoundException();
-        }
+    public void removePost(Long id, Long memberId) {
+        Post post = findPost(id);
+        validateOwner(post, memberId);
         postLikeRepository.deleteAllByPostId(id);
         postRepository.deleteById(id);
+    }
+
+    private void validateOwner(Post post, Long memberId) {
+        if (!post.isWrittenBy(memberId)) {
+            throw new NotPostOwnerException();
+        }
     }
 
     private void validatePageRequest(int page, int size) {

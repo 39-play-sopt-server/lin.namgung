@@ -94,6 +94,10 @@ public class Post extends BaseEntity {
         return likeCount;
     }
 
+    public boolean isWrittenBy(Long memberId) {
+        return memberId != null && memberId.equals(member.getId());
+    }
+
     public void update(String title, String content) {
         if (title == null && content == null) {
             throw new InvalidPostException(ErrorCode.EMPTY_UPDATE_REQUEST);
