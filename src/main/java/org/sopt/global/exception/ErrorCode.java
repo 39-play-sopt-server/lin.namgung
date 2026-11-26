@@ -31,6 +31,9 @@ public enum ErrorCode implements ResponseCode {
     EXPIRED_TOKEN(HttpStatus.UNAUTHORIZED, "만료된 토큰입니다. 토큰을 재발급해주세요."),
     INVALID_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "Refresh Token이 없거나 유효하지 않습니다. 다시 로그인해주세요."),
     EXPIRED_REFRESH_TOKEN(HttpStatus.UNAUTHORIZED, "Refresh Token이 만료되었습니다. 다시 로그인해주세요."),
+    SOCIAL_LOGIN_FAILED(HttpStatus.UNAUTHORIZED, "카카오 로그인에 실패했습니다. 다시 시도해주세요."),
+    INVALID_OAUTH_STATE(HttpStatus.BAD_REQUEST, "로그인 요청 정보가 일치하지 않습니다. 처음부터 다시 시도해주세요."),
+    WITHDRAWN_MEMBER(HttpStatus.FORBIDDEN, "탈퇴한 회원입니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "접근 권한이 없습니다."),
 
     INVALID_REQUEST(HttpStatus.BAD_REQUEST, "잘못된 요청입니다."),

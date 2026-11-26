@@ -4,6 +4,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.sopt.auth.dto.request.KakaoLoginRequest;
 import org.sopt.auth.dto.request.LoginRequest;
 import org.sopt.auth.dto.request.SignupRequest;
 import org.sopt.auth.dto.response.TokenResponse;
@@ -11,7 +12,7 @@ import org.sopt.global.response.ApiResponse;
 import org.sopt.member.dto.response.MemberResponse;
 import org.springframework.http.ResponseEntity;
 
-@Tag(name = "인증", description = "회원가입, 로그인, 토큰 재발급, 로그아웃 API")
+@Tag(name = "인증", description = "회원가입, 로그인(이메일, 카카오), 토큰 재발급, 로그아웃 API")
 public interface AuthApi {
 
     @Operation(
@@ -65,4 +66,51 @@ public interface AuthApi {
                     responseCode = "200", description = "로그아웃 성공 (이미 로그아웃한 상태여도 200)")
     })
     ResponseEntity<ApiResponse<Void>> logout(@Parameter(hidden = true) String refreshToken);
+
+    @Operation(
+            summary = "카카오 로그인 시작",
+            description = "카카오 로그인 화면으로 302 리다이렉트합니다. 브라우저 주소창에 직접 입력해서 테스트할 수 있습니다. "
+                    + "CSRF 방지용 state 값을 oauth_state 쿠키(5분)에 담아 콜백에서 비교합니다."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "302", description = "카카오 인가 페이지로 이동")
+    })
+    ResponseEntity<Void> redirectToKakao();
+
+    @Operation(
+            summary = "카카오 로그인 콜백",
+            description = "카카오가 인가 코드(code)와 state를 붙여 호출하는 Redirect URI입니다. "
+                    + "처음 로그인하면 자동으로 가입되고, 이메일 로그인과 같은 방식으로 토큰을 발급합니다."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200", description = "로그인 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "400", description = "state 값이 없거나 일치하지 않음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401", description = "인가 코드가 없거나 카카오 인증에 실패함"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403", description = "탈퇴한 회원")
+    })
+    ResponseEntity<ApiResponse<TokenResponse>> kakaoCallback(
+            @Parameter(description = "카카오가 발급한 인가 코드") String code,
+            @Parameter(description = "로그인 시작 때 보낸 state") String state,
+            @Parameter(hidden = true) String savedState
+    );
+
+    @Operation(
+            summary = "카카오 로그인 (클라이언트용)",
+            description = "프론트엔드가 카카오 로그인 후 받은 인가 코드를 전달하면 토큰을 발급합니다. "
+                    + "카카오에 등록한 Redirect URI가 서버 설정(KAKAO_REDIRECT_URI)과 같아야 합니다."
+    )
+    @ApiResponses({
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "200", description = "로그인 성공"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401", description = "인가 코드가 없거나 카카오 인증에 실패함"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403", description = "탈퇴한 회원")
+    })
+    ResponseEntity<ApiResponse<TokenResponse>> kakaoLogin(KakaoLoginRequest request);
 }

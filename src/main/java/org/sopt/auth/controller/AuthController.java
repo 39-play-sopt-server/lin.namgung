@@ -1,29 +1,54 @@
 package org.sopt.auth.controller;
 
+import org.sopt.auth.dto.request.KakaoLoginRequest;
 import org.sopt.auth.dto.request.LoginRequest;
 import org.sopt.auth.dto.request.SignupRequest;
 import org.sopt.auth.dto.response.TokenResponse;
+import org.sopt.auth.exception.AuthException;
 import org.sopt.auth.service.AuthService;
 import org.sopt.auth.service.AuthTokens;
+import org.sopt.auth.service.KakaoLoginService;
+import org.sopt.global.exception.ErrorCode;
 import org.sopt.global.response.ApiResponse;
 import org.sopt.global.response.SuccessCode;
 import org.sopt.member.dto.response.MemberResponse;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseCookie;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.SecureRandom;
+import java.time.Duration;
+import java.util.Base64;
 
 @RestController
 @RequestMapping(path = "/api/v1/auth")
 public class AuthController implements AuthApi {
+    private static final String OAUTH_STATE_COOKIE = "oauth_state";
+    private static final String OAUTH_STATE_PATH = "/api/v1/auth/kakao";
+    private static final Duration OAUTH_STATE_MAX_AGE = Duration.ofMinutes(5);
+
+    private final SecureRandom secureRandom = new SecureRandom();
     private final AuthService authService;
+    private final KakaoLoginService kakaoLoginService;
     private final RefreshTokenCookieFactory cookieFactory;
 
-    public AuthController(AuthService authService, RefreshTokenCookieFactory cookieFactory) {
+    public AuthController(
+            AuthService authService,
+            KakaoLoginService kakaoLoginService,
+            RefreshTokenCookieFactory cookieFactory
+    ) {
         this.authService = authService;
+        this.kakaoLoginService = kakaoLoginService;
         this.cookieFactory = cookieFactory;
     }
 
@@ -59,6 +84,59 @@ public class AuthController implements AuthApi {
         return ResponseEntity.status(SuccessCode.LOGOUT_SUCCESS.getStatus())
                 .header(HttpHeaders.SET_COOKIE, cookieFactory.expire().toString())
                 .body(ApiResponse.of(SuccessCode.LOGOUT_SUCCESS));
+    }
+
+    @Override
+    @GetMapping(path = "/kakao")
+    public ResponseEntity<Void> redirectToKakao() {
+        String state = generateState();
+        ResponseCookie stateCookie = ResponseCookie.from(OAUTH_STATE_COOKIE, state)
+                .httpOnly(true)
+                .sameSite("Lax")
+                .path(OAUTH_STATE_PATH)
+                .maxAge(OAUTH_STATE_MAX_AGE)
+                .build();
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .header(HttpHeaders.LOCATION, kakaoLoginService.getAuthorizationUrl(state))
+                .header(HttpHeaders.SET_COOKIE, stateCookie.toString())
+                .build();
+    }
+
+    @Override
+    @GetMapping(path = "/kakao/callback")
+    public ResponseEntity<ApiResponse<TokenResponse>> kakaoCallback(
+            @RequestParam(name = "code", required = false) String code,
+            @RequestParam(name = "state", required = false) String state,
+            @CookieValue(name = OAUTH_STATE_COOKIE, required = false) String savedState
+    ) {
+        if (!isSameState(state, savedState)) {
+            throw new AuthException(ErrorCode.INVALID_OAUTH_STATE);
+        }
+        AuthTokens tokens = kakaoLoginService.login(code);
+        return withTokens(SuccessCode.LOGIN_SUCCESS, tokens);
+    }
+
+    @Override
+    @PostMapping(path = "/kakao/login")
+    public ResponseEntity<ApiResponse<TokenResponse>> kakaoLogin(@RequestBody KakaoLoginRequest request) {
+        AuthTokens tokens = kakaoLoginService.login(request.code());
+        return withTokens(SuccessCode.LOGIN_SUCCESS, tokens);
+    }
+
+    private String generateState() {
+        byte[] bytes = new byte[16];
+        secureRandom.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private boolean isSameState(String state, String savedState) {
+        if (state == null || savedState == null) {
+            return false;
+        }
+        return MessageDigest.isEqual(
+                state.getBytes(StandardCharsets.UTF_8),
+                savedState.getBytes(StandardCharsets.UTF_8)
+        );
     }
 
     private ResponseEntity<ApiResponse<TokenResponse>> withTokens(SuccessCode successCode, AuthTokens tokens) {
