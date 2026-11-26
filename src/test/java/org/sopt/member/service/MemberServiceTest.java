@@ -2,8 +2,8 @@ package org.sopt.member.service;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.sopt.member.domain.Member;
 import org.sopt.member.dto.response.MemberResponse;
-import org.sopt.member.exception.InvalidMemberException;
 import org.sopt.member.exception.MemberNotFoundException;
 import org.sopt.member.repository.MemberRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,7 +11,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -25,31 +24,37 @@ class MemberServiceTest {
     private MemberRepository memberRepository;
 
     @Test
-    @DisplayName("회원을 등록하면 id와 이름, 생성일이 담긴 정보를 반환한다")
-    void register() {
-        MemberResponse response = memberService.registerMember("린");
+    @DisplayName("회원 정보를 조회하면 id, 이름, 이메일을 반환한다")
+    void getMember() {
+        Member member = memberRepository.save(Member.createWithEmail("린", "lin@sopt.org", "encoded"));
 
-        assertNotNull(response.id());
+        MemberResponse response = memberService.getMember(member.getId());
+
+        assertEquals(member.getId(), response.id());
         assertEquals("린", response.name());
-        assertNotNull(response.createdAt());
+        assertEquals("lin@sopt.org", response.email());
     }
 
     @Test
-    @DisplayName("이름이 비어있으면 회원을 등록할 수 없다")
-    void registerWithBlankName() {
-        assertThrows(InvalidMemberException.class, () -> memberService.registerMember("  "));
+    @DisplayName("탈퇴한 회원의 정보는 조회할 수 없다")
+    void getWithdrawnMember() {
+        Member member = memberRepository.save(Member.create("린"));
+        memberService.withdrawMember(member.getId());
+        memberRepository.flush();
+
+        assertThrows(MemberNotFoundException.class, () -> memberService.getMember(member.getId()));
     }
 
     @Test
     @DisplayName("탈퇴하면 회원은 삭제되지 않고 탈퇴 상태로 남는다")
     void withdrawKeepsRow() {
-        MemberResponse created = memberService.registerMember("린");
+        Member member = memberRepository.save(Member.create("린"));
 
-        memberService.withdrawMember(created.id());
+        memberService.withdrawMember(member.getId());
         memberRepository.flush();
 
-        assertTrue(memberRepository.findById(created.id()).orElseThrow().isDeleted());
-        assertTrue(memberRepository.findByIdAndDeletedFalse(created.id()).isEmpty());
+        assertTrue(memberRepository.findById(member.getId()).orElseThrow().isDeleted());
+        assertTrue(memberRepository.findByIdAndDeletedFalse(member.getId()).isEmpty());
     }
 
     @Test
@@ -61,10 +66,10 @@ class MemberServiceTest {
     @Test
     @DisplayName("이미 탈퇴한 회원은 다시 탈퇴할 수 없다")
     void withdrawTwice() {
-        MemberResponse created = memberService.registerMember("린");
-        memberService.withdrawMember(created.id());
+        Member member = memberRepository.save(Member.create("린"));
+        memberService.withdrawMember(member.getId());
         memberRepository.flush();
 
-        assertThrows(MemberNotFoundException.class, () -> memberService.withdrawMember(created.id()));
+        assertThrows(MemberNotFoundException.class, () -> memberService.withdrawMember(member.getId()));
     }
 }

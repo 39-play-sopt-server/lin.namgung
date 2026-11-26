@@ -15,16 +15,18 @@ public class MemberService {
         this.memberRepository = memberRepository;
     }
 
-    @Transactional
-    public MemberResponse registerMember(String name) {
-        Member member = Member.create(name);
-        return MemberResponse.from(memberRepository.save(member));
+    @Transactional(readOnly = true)
+    public MemberResponse getMember(Long memberId) {
+        return MemberResponse.from(findActiveMember(memberId));
     }
 
     @Transactional
     public void withdrawMember(Long memberId) {
-        Member member = memberRepository.findByIdAndDeletedFalse(memberId)
+        findActiveMember(memberId).delete();
+    }
+
+    private Member findActiveMember(Long memberId) {
+        return memberRepository.findByIdAndDeletedFalse(memberId)
                 .orElseThrow(MemberNotFoundException::new);
-        member.delete();
     }
 }
