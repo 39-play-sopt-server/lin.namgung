@@ -10,3 +10,18 @@ spring:
   jpa:
     hibernate:
       ddl-auto: create-drop
+
+jwt:
+  # 테스트 전용 키 (운영에서 쓰지 않는다)
+  secret: dGVzdC1vbmx5LWp3dC1zZWNyZXQta2V5LWZvci1zb3B0LTZ0aC1hc3NpZ25tZW50
+  access-token-expiration: 1800000
+  refresh-token-expiration: 1209600000
+  refresh-cookie:
+    secure: true
+    same-site: Lax
+
+oauth:
+  kakao:
+    client-id: test-client-id
+    client-secret: test-client-secret
+    redirect-uri: http://localhost:8080/api/v1/auth/kakao/callback
