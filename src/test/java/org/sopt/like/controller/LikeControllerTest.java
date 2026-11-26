@@ -14,11 +14,16 @@ import org.sopt.post.domain.Post;
 import org.sopt.post.repository.PostRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.util.List;
+
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -40,6 +45,7 @@ class LikeControllerTest {
     private MockMvc mockMvc;
     private Long postId;
     private Long memberId;
+    private Long loginMemberId;
     private String likesUrl;
 
     @BeforeEach
@@ -47,15 +53,26 @@ class LikeControllerTest {
         clear();
         Member member = memberRepository.save(Member.create("회원"));
         memberId = member.getId();
+        loginMemberId = memberId;
         postId = postRepository.save(Post.create("제목", "본문", member, Category.FREE)).getId();
         likesUrl = "/api/v1/posts/" + postId + "/likes";
         mockMvc = MockMvcBuilders.standaloneSetup(new LikeController(postLikeService))
                 .setControllerAdvice(new GlobalExceptionHandler())
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
+                .defaultRequest(get("/").with(request -> {
+                    SecurityContextHolder.clearContext();
+                    if (loginMemberId != null) {
+                        SecurityContextHolder.getContext().setAuthentication(
+                                new UsernamePasswordAuthenticationToken(loginMemberId, null, List.of()));
+                    }
+                    return request;
+                }))
                 .build();
     }
 
     @AfterEach
     void tearDown() {
+        SecurityContextHolder.clearContext();
         clear();
     }
 
@@ -68,9 +85,7 @@ class LikeControllerTest {
     @Test
     @DisplayName("좋아요를 누르면 201과 최신 좋아요 수를 공통 응답 형식으로 반환한다")
     void like() throws Exception {
-        mockMvc.perform(post(likesUrl)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body(memberId)))
+        mockMvc.perform(post(likesUrl))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.code").value("POST_LIKED"))
@@ -84,9 +99,7 @@ class LikeControllerTest {
     void likeTwice() throws Exception {
         like();
 
-        mockMvc.perform(post(likesUrl)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body(memberId)))
+        mockMvc.perform(post(likesUrl))
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("ALREADY_LIKED"));
@@ -95,9 +108,7 @@ class LikeControllerTest {
     @Test
     @DisplayName("존재하지 않는 글에 좋아요를 누르면 404를 반환한다")
     void likeUnknownPost() throws Exception {
-        mockMvc.perform(post("/api/v1/posts/999999/likes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body(memberId)))
+        mockMvc.perform(post("/api/v1/posts/999999/likes"))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("POST_NOT_FOUND"));
     }
@@ -105,9 +116,9 @@ class LikeControllerTest {
     @Test
     @DisplayName("존재하지 않는 회원이 좋아요를 누르면 404를 반환한다")
     void likeUnknownMember() throws Exception {
-        mockMvc.perform(post(likesUrl)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body(999999L)))
+        loginMemberId = 999999L;
+
+        mockMvc.perform(post(likesUrl))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
     }
@@ -119,19 +130,17 @@ class LikeControllerTest {
         member.delete();
         memberRepository.save(member);
 
-        mockMvc.perform(post(likesUrl)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body(memberId)))
+        mockMvc.perform(post(likesUrl))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
     }
 
     @Test
-    @DisplayName("memberId를 생략하면 400을 반환한다")
+    @DisplayName("인증 정보가 비어 회원 id를 알 수 없으면 400을 반환한다")
     void likeWithoutMemberId() throws Exception {
-        mockMvc.perform(post(likesUrl)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{}"))
+        loginMemberId = null;
+
+        mockMvc.perform(post(likesUrl))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_MEMBER_ID"));
     }
@@ -139,9 +148,7 @@ class LikeControllerTest {
     @Test
     @DisplayName("글 id가 숫자가 아니면 400을 반환한다")
     void likeWithInvalidPostId() throws Exception {
-        mockMvc.perform(post("/api/v1/posts/abc/likes")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(body(memberId)))
+        mockMvc.perform(post("/api/v1/posts/abc/likes"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_PARAMETER"));
     }
@@ -151,7 +158,7 @@ class LikeControllerTest {
     void unlike() throws Exception {
         like();
 
-        mockMvc.perform(delete(likesUrl + "/" + memberId))
+        mockMvc.perform(delete(likesUrl))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.code").value("POST_UNLIKED"))
@@ -161,12 +168,8 @@ class LikeControllerTest {
     @Test
     @DisplayName("좋아요를 누르지 않은 글을 취소하면 404를 반환한다")
     void unlikeWithoutLike() throws Exception {
-        mockMvc.perform(delete(likesUrl + "/" + memberId))
+        mockMvc.perform(delete(likesUrl))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("LIKE_NOT_FOUND"));
-    }
-
-    private String body(Long id) {
-        return "{\"memberId\": " + id + "}";
     }
 }

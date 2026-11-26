@@ -19,17 +19,23 @@ public interface PostApi {
 
     @Operation(
             summary = "게시글 작성",
-            description = "제목, 본문, 작성자(memberId), 카테고리로 게시글을 작성합니다. 탈퇴한 회원은 작성할 수 없습니다."
+            description = "제목, 본문, 카테고리로 게시글을 작성합니다. 작성자는 Access Token의 회원입니다(로그인 필요). "
+                    + "탈퇴한 회원은 작성할 수 없습니다."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "201", description = "게시글 작성 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400", description = "제목, 본문, memberId, 카테고리가 비어있거나 요청 형식이 올바르지 않음"),
+                    responseCode = "400", description = "제목, 본문, 카테고리가 비어있거나 요청 형식이 올바르지 않음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401", description = "로그인하지 않았거나 토큰이 유효하지 않음"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "404", description = "존재하지 않거나 탈퇴한 회원")
     })
-    ResponseEntity<ApiResponse<PostResponse>> createPost(CreatePostRequest request);
+    ResponseEntity<ApiResponse<PostResponse>> createPost(
+            @Parameter(hidden = true) Long memberId,
+            CreatePostRequest request
+    );
 
     @Operation(
             summary = "게시글 목록 조회",
@@ -111,7 +117,8 @@ public interface PostApi {
 
     @Operation(
             summary = "게시글 수정",
-            description = "전달한 필드만 수정합니다. 생략(null)한 필드는 기존 값을 유지하고, 빈 문자열은 허용하지 않습니다."
+            description = "작성자 본인만 수정할 수 있습니다(로그인 필요). "
+                    + "전달한 필드만 수정합니다. 생략(null)한 필드는 기존 값을 유지하고, 빈 문자열은 허용하지 않습니다."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
@@ -119,22 +126,32 @@ public interface PostApi {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "400", description = "수정할 값이 없거나 제목, 본문이 빈 문자열임"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401", description = "로그인하지 않았거나 토큰이 유효하지 않음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403", description = "본인이 작성한 게시글이 아님"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "404", description = "존재하지 않는 게시글")
     })
     ResponseEntity<ApiResponse<PostResponse>> updatePost(
+            @Parameter(hidden = true) Long memberId,
             @Parameter(description = "게시글 id", example = "1")
             Long postId,
             UpdatePostRequest request
     );
 
-    @Operation(summary = "게시글 삭제", description = "게시글을 삭제합니다.")
+    @Operation(summary = "게시글 삭제", description = "작성자 본인만 게시글을 삭제할 수 있습니다(로그인 필요).")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200", description = "게시글 삭제 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "401", description = "로그인하지 않았거나 토큰이 유효하지 않음"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "403", description = "본인이 작성한 게시글이 아님"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "404", description = "존재하지 않는 게시글")
     })
     ResponseEntity<ApiResponse<Void>> deletePost(
+            @Parameter(hidden = true) Long memberId,
             @Parameter(description = "게시글 id", example = "1")
             Long postId
     );

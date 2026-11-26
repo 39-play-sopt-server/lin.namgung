@@ -62,6 +62,35 @@ class MemberTest {
         assertEquals("남궁린", member.getName());
     }
 
+    @Test
+    @DisplayName("이메일로 가입한 회원은 이메일과 해싱된 비밀번호를 가지고 소셜 정보는 없다")
+    void createWithEmail() {
+        Member member = Member.createWithEmail("남궁린", "lin@sopt.org", "$2a$10$hashed");
+
+        assertEquals("lin@sopt.org", member.getEmail());
+        assertEquals("$2a$10$hashed", member.getPassword());
+        assertNull(member.getSocialProvider());
+        assertNull(member.getSocialId());
+    }
+
+    @Test
+    @DisplayName("소셜로 가입한 회원은 제공자와 소셜 id를 가지고 비밀번호는 없다")
+    void createWithSocial() {
+        Member member = Member.createWithSocial("남궁린", SocialProvider.KAKAO, "12345");
+
+        assertEquals(SocialProvider.KAKAO, member.getSocialProvider());
+        assertEquals("12345", member.getSocialId());
+        assertNull(member.getEmail());
+        assertNull(member.getPassword());
+    }
+
+    @Test
+    @DisplayName("이메일, 소셜 가입에서도 이름이 비어있으면 생성할 수 없다")
+    void createWithBlankNameByAnyWay() {
+        assertThrows(InvalidMemberException.class, () -> Member.createWithEmail(" ", "lin@sopt.org", "pw"));
+        assertThrows(InvalidMemberException.class, () -> Member.createWithSocial(null, SocialProvider.KAKAO, "1"));
+    }
+
     private void assertCreateFails(String name) {
         InvalidMemberException e = assertThrows(InvalidMemberException.class, () -> Member.create(name));
         assertEquals(ErrorCode.INVALID_MEMBER_NAME, e.getErrorCode());

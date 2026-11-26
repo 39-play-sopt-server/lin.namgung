@@ -5,34 +5,34 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.sopt.global.response.ApiResponse;
-import org.sopt.member.dto.request.CreateMemberRequest;
 import org.sopt.member.dto.response.MemberResponse;
 import org.springframework.http.ResponseEntity;
 
-@Tag(name = "회원", description = "회원 등록, 탈퇴 API")
+@Tag(name = "회원", description = "내 정보 조회, 회원 탈퇴 API (로그인 필요)")
 public interface MemberApi {
 
-    @Operation(summary = "회원 등록", description = "이름으로 회원을 등록합니다.")
+    @Operation(summary = "내 정보 조회", description = "Access Token의 회원 정보를 조회합니다.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "201", description = "회원 등록 성공"),
+                    responseCode = "200", description = "조회 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "400", description = "이름이 비어있거나 요청 형식이 올바르지 않음")
+                    responseCode = "401", description = "토큰이 없거나 유효하지 않음, 또는 만료됨"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404", description = "탈퇴한 회원")
     })
-    ResponseEntity<ApiResponse<MemberResponse>> createMember(CreateMemberRequest request);
+    ResponseEntity<ApiResponse<MemberResponse>> getMe(@Parameter(hidden = true) Long memberId);
 
     @Operation(
             summary = "회원 탈퇴",
-            description = "회원을 탈퇴 처리합니다. 회원이 쓴 게시글은 삭제되지 않고, 작성자가 '탈퇴한 회원'으로 표시됩니다."
+            description = "로그인한 회원을 탈퇴 처리합니다. 회원이 쓴 게시글은 삭제되지 않고, 작성자가 '탈퇴한 회원'으로 표시됩니다."
     )
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
                     responseCode = "200", description = "회원 탈퇴 성공"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(
-                    responseCode = "404", description = "존재하지 않거나 이미 탈퇴한 회원")
+                    responseCode = "401", description = "토큰이 없거나 유효하지 않음, 또는 만료됨"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(
+                    responseCode = "404", description = "이미 탈퇴한 회원")
     })
-    ResponseEntity<ApiResponse<Void>> deleteMember(
-            @Parameter(description = "회원 id", example = "1")
-            Long memberId
-    );
+    ResponseEntity<ApiResponse<Void>> deleteMe(@Parameter(hidden = true) Long memberId);
 }

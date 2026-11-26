@@ -16,6 +16,7 @@ import org.sopt.post.dto.response.PostSummaryResponse;
 import org.sopt.post.exception.InvalidPageRequestException;
 import org.sopt.post.exception.InvalidPostException;
 import org.sopt.post.exception.InvalidSearchKeywordException;
+import org.sopt.post.exception.NotPostOwnerException;
 import org.sopt.post.exception.PostNotFoundException;
 import org.sopt.post.repository.PostRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -132,7 +133,7 @@ class PostServiceTest {
     @Test
     @DisplayName("수정 시 게시글 존재 여부를 값 검증보다 먼저 확인한다")
     void changePostChecksExistenceFirst() {
-        assertThrows(PostNotFoundException.class, () -> postService.changePost(999L, " ", null));
+        assertThrows(PostNotFoundException.class, () -> postService.changePost(999L, member.getId(), " ", null));
     }
 
     @Test
@@ -140,7 +141,7 @@ class PostServiceTest {
     void changePostPartially() {
         PostResponse created = postService.registerPost("제목", "본문", member.getId(),Category.FREE);
 
-        PostResponse changed = postService.changePost(created.id(), "새 제목", null);
+        PostResponse changed = postService.changePost(created.id(), member.getId(), "새 제목", null);
 
         assertEquals("새 제목", changed.title());
         assertEquals("본문", changed.content());
@@ -151,7 +152,7 @@ class PostServiceTest {
     void changePostWithNothing() {
         PostResponse created = postService.registerPost("제목", "본문", member.getId(),Category.FREE);
 
-        assertThrows(InvalidPostException.class, () -> postService.changePost(created.id(), null, null));
+        assertThrows(InvalidPostException.class, () -> postService.changePost(created.id(), member.getId(), null, null));
     }
 
     @Test
@@ -159,10 +160,23 @@ class PostServiceTest {
     void removePost() {
         PostResponse created = postService.registerPost("제목", "본문", member.getId(),Category.FREE);
 
-        postService.removePost(created.id());
+        postService.removePost(created.id(), member.getId());
 
         assertThrows(PostNotFoundException.class, () -> postService.getPost(created.id()));
-        assertThrows(PostNotFoundException.class, () -> postService.removePost(created.id()));
+        assertThrows(PostNotFoundException.class, () -> postService.removePost(created.id(), member.getId()));
+    }
+
+    @Test
+    @DisplayName("작성자가 아닌 회원은 게시글을 수정, 삭제할 수 없고 게시글은 그대로 남는다")
+    void changeOrRemoveOthersPost() {
+        PostResponse created = postService.registerPost("제목", "본문", member.getId(), Category.FREE);
+        Long otherId = memberRepository.save(Member.create("다른 회원")).getId();
+
+        assertThrows(NotPostOwnerException.class,
+                () -> postService.changePost(created.id(), otherId, "남이 바꾼 제목", null));
+        assertThrows(NotPostOwnerException.class, () -> postService.removePost(created.id(), otherId));
+        assertThrows(NotPostOwnerException.class, () -> postService.removePost(created.id(), null));
+        assertEquals("제목", postService.getPost(created.id()).title());
     }
 
     @Test
@@ -174,7 +188,7 @@ class PostServiceTest {
         postLikeRepository.save(PostLike.create(postRepository.findById(target.id()).orElseThrow(), liker));
         postLikeRepository.save(PostLike.create(postRepository.findById(other.id()).orElseThrow(), liker));
 
-        postService.removePost(target.id());
+        postService.removePost(target.id(), member.getId());
 
         assertEquals(0, postLikeRepository.countByPostId(target.id()));
         assertEquals(1, postLikeRepository.countByPostId(other.id()));

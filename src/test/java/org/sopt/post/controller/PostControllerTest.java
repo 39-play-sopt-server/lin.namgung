@@ -13,8 +13,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import java.util.List;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -44,17 +49,31 @@ class PostControllerTest {
 
     private Long memberId;
 
+    /** 요청을 보낼 때 로그인한 회원. 보안 필터 대신 SecurityContext에 직접 넣는다. */
+    private Long loginMemberId;
+
     @BeforeEach
     void setUp() {
         resetPosts();
         memberId = memberRepository.save(Member.create("작성자")).getId();
+        loginMemberId = memberId;
         mockMvc = MockMvcBuilders.standaloneSetup(new PostController(postService))
                 .setControllerAdvice(new GlobalExceptionHandler())
+                .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
+                .defaultRequest(get("/").with(request -> {
+                    SecurityContextHolder.clearContext();
+                    if (loginMemberId != null) {
+                        SecurityContextHolder.getContext().setAuthentication(
+                                new UsernamePasswordAuthenticationToken(loginMemberId, null, List.of()));
+                    }
+                    return request;
+                }))
                 .build();
     }
 
     @AfterEach
     void tearDown() {
+        SecurityContextHolder.clearContext();
         postRepository.deleteAll();
         memberRepository.deleteAll();
     }
@@ -70,7 +89,7 @@ class PostControllerTest {
     void createPost() throws Exception {
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody("제목", "본문", memberId,"NOTICE")))
+                        .content(createBody("제목", "본문", "NOTICE")))
                 .andExpect(status().isCreated())
                 .andExpect(header().exists("Location"))
                 .andExpect(jsonPath("$.success").value(true))
@@ -89,7 +108,7 @@ class PostControllerTest {
     void createPostWithBlankTitle() throws Exception {
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody(" ", "본문", memberId,"FREE")))
+                        .content(createBody(" ", "본문", "FREE")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("INVALID_TITLE"))
@@ -100,9 +119,11 @@ class PostControllerTest {
     @Test
     @DisplayName("존재하지 않는 회원이면 404를 반환한다")
     void createPostWithUnknownMember() throws Exception {
+        loginMemberId = 999999L;
+
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody("제목", "본문", 999999L, "FREE")))
+                        .content(createBody("제목", "본문", "FREE")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"))
@@ -110,13 +131,16 @@ class PostControllerTest {
     }
 
     @Test
-    @DisplayName("memberId를 생략하면 400을 반환한다")
-    void createPostWithoutMemberId() throws Exception {
+    @DisplayName("요청 본문에 다른 회원의 memberId를 넣어도 무시하고 로그인한 회원을 작성자로 저장한다")
+    void createPostIgnoresMemberIdInBody() throws Exception {
+        Long otherId = memberRepository.save(Member.create("다른 회원")).getId();
+
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\": \"제목\", \"content\": \"본문\", \"category\": \"FREE\"}"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_AUTHOR"));
+                        .content("{\"title\": \"제목\", \"content\": \"본문\", \"memberId\": " + otherId
+                                + ", \"category\": \"FREE\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.author").value("작성자"));
     }
 
     @Test
@@ -124,7 +148,7 @@ class PostControllerTest {
     void createPostWithoutCategory() throws Exception {
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"title\": \"제목\", \"content\": \"본문\", \"memberId\": " + memberId + "}"))
+                        .content("{\"title\": \"제목\", \"content\": \"본문\"}"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value("INVALID_CATEGORY"));
     }
@@ -134,7 +158,7 @@ class PostControllerTest {
     void createPostWithUnknownCategory() throws Exception {
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody("제목", "본문", memberId,"UNKNOWN")))
+                        .content(createBody("제목", "본문", "UNKNOWN")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.code").value("INVALID_REQUEST_BODY"));
@@ -264,9 +288,9 @@ class PostControllerTest {
         createPost("공지", "NOTICE");
         createPost("스터디 1", "STUDY");
         createPost("스터디 2", "STUDY");
-        mockMvc.perform(post(BASE_URL)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(createBody("남의 스터디", "본문", otherId, "STUDY")));
+        loginMemberId = otherId;
+        createPost("남의 스터디", "STUDY");
+        loginMemberId = memberId;
 
         mockMvc.perform(get(BASE_URL + "/filter")
                         .param("memberId", String.valueOf(memberId))
@@ -360,7 +384,7 @@ class PostControllerTest {
 
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody("제목", "본문", memberId, "FREE")))
+                        .content(createBody("제목", "본문", "FREE")))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.code").value("MEMBER_NOT_FOUND"));
     }
@@ -513,10 +537,40 @@ class PostControllerTest {
                 .andExpect(jsonPath("$.code").value("POST_NOT_FOUND"));
     }
 
+    @Test
+    @DisplayName("다른 회원의 게시글은 수정할 수 없고 403을 반환한다")
+    void updateOthersPost() throws Exception {
+        createPost("제목", "FREE");
+        loginMemberId = memberRepository.save(Member.create("다른 회원")).getId();
+
+        mockMvc.perform(patch(BASE_URL + "/1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"title\": \"남이 바꾼 제목\"}"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("NOT_POST_OWNER"));
+
+        mockMvc.perform(get(BASE_URL + "/1"))
+                .andExpect(jsonPath("$.data.title").value("제목"));
+    }
+
+    @Test
+    @DisplayName("다른 회원의 게시글은 삭제할 수 없고 403을 반환한다")
+    void deleteOthersPost() throws Exception {
+        createPost("제목", "FREE");
+        loginMemberId = memberRepository.save(Member.create("다른 회원")).getId();
+
+        mockMvc.perform(delete(BASE_URL + "/1"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value("NOT_POST_OWNER"));
+
+        mockMvc.perform(get(BASE_URL + "/1"))
+                .andExpect(status().isOk());
+    }
+
     private void createPost(String title, String category) throws Exception {
         mockMvc.perform(post(BASE_URL)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content(createBody(title, "본문", memberId,category)))
+                        .content(createBody(title, "본문", category)))
                 .andExpect(status().isCreated());
     }
 
@@ -526,8 +580,8 @@ class PostControllerTest {
         memberRepository.save(member);
     }
 
-    private String createBody(String title, String content, Long writerId, String category) {
+    private String createBody(String title, String content, String category) {
         return "{\"title\": \"" + title + "\", \"content\": \"" + content
-                + "\", \"memberId\": " + writerId + ", \"category\": \"" + category + "\"}";
+                + "\", \"category\": \"" + category + "\"}";
     }
 }

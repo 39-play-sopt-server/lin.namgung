@@ -11,6 +11,7 @@ import org.sopt.post.dto.response.PostResponse;
 import org.sopt.post.dto.response.PostSummaryResponse;
 import org.sopt.post.service.PostService;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -36,10 +37,11 @@ public class PostController implements PostApi {
     @Override
     @PostMapping
     public ResponseEntity<ApiResponse<PostResponse>> createPost(
+            @AuthenticationPrincipal Long memberId,
             @RequestBody CreatePostRequest request
     ) {
         PostResponse response = postService.registerPost(
-                request.title(), request.content(), request.memberId(), request.category());
+                request.title(), request.content(), memberId, request.category());
         URI location = ServletUriComponentsBuilder.fromCurrentRequest()
                 .path("/{postId}")
                 .buildAndExpand(response.id())
@@ -94,19 +96,21 @@ public class PostController implements PostApi {
     @Override
     @PatchMapping(path = "/{postId}")
     public ResponseEntity<ApiResponse<PostResponse>> updatePost(
+            @AuthenticationPrincipal Long memberId,
             @PathVariable(name = "postId") Long postId,
             @RequestBody UpdatePostRequest request
     ) {
         return ApiResponse.toResponseEntity(SuccessCode.POST_UPDATED,
-                postService.changePost(postId, request.title(), request.content()));
+                postService.changePost(postId, memberId, request.title(), request.content()));
     }
 
     @Override
     @DeleteMapping(path = "/{postId}")
     public ResponseEntity<ApiResponse<Void>> deletePost(
+            @AuthenticationPrincipal Long memberId,
             @PathVariable(name = "postId") Long postId
     ) {
-        postService.removePost(postId);
+        postService.removePost(postId, memberId);
         return ApiResponse.toResponseEntity(SuccessCode.POST_DELETED, null);
     }
 }
