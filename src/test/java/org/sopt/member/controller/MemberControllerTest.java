@@ -9,6 +9,7 @@ import org.sopt.auth.jwt.JwtProvider;
 import org.sopt.member.repository.MemberRepository;
 import org.sopt.post.repository.PostRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -29,12 +30,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @SpringBootTest
 class MemberControllerTest {
-    private static final String SECRET = "dGVzdC1vbmx5LWp3dC1zZWNyZXQta2V5LWZvci1zb3B0LTZ0aC1hc3NpZ25tZW50";
     private static final String EMAIL = "lin@sopt.org";
     private static final String PASSWORD = "sopt1234!";
 
     @Autowired
     private WebApplicationContext context;
+
+    @Value("${jwt.secret}")
+    private String secret;
 
     @Autowired
     private MemberRepository memberRepository;
@@ -138,7 +141,7 @@ class MemberControllerTest {
     @DisplayName("만료된 토큰으로 요청하면 401(EXPIRED_TOKEN)을 반환한다")
     void getMeWithExpiredToken() throws Exception {
         Integer memberId = signupAndGetId();
-        String expired = new JwtProvider(SECRET, -60_000L).createAccessToken(memberId.longValue());
+        String expired = new JwtProvider(secret, -60_000L).createAccessToken(memberId.longValue());
 
         mockMvc.perform(get("/api/v1/members/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + expired))
                 .andExpect(status().isUnauthorized())
