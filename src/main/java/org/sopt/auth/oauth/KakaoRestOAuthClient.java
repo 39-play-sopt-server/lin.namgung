@@ -40,12 +40,11 @@ public class KakaoRestOAuthClient implements KakaoOAuthClient {
     }
 
     @Override
-    public String getAuthorizationUrl(String state) {
+    public String getAuthorizationUrl() {
         return UriComponentsBuilder.fromUriString(AUTHORIZE_URL)
                 .queryParam("response_type", "code")
                 .queryParam("client_id", clientId)
                 .queryParam("redirect_uri", redirectUri)
-                .queryParam("state", state)
                 .encode()
                 .toUriString();
     }

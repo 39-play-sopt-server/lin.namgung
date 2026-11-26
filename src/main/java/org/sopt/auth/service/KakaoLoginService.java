@@ -28,8 +28,8 @@ public class KakaoLoginService {
         this.tokenIssuer = tokenIssuer;
     }
 
-    public String getAuthorizationUrl(String state) {
-        return kakaoOAuthClient.getAuthorizationUrl(state);
+    public String getAuthorizationUrl() {
+        return kakaoOAuthClient.getAuthorizationUrl();
     }
 
     /**

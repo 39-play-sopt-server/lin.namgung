@@ -20,7 +20,6 @@ import org.springframework.web.context.WebApplicationContext;
 
 import static org.hamcrest.Matchers.containsString;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -150,32 +149,21 @@ class AuthControllerTest {
     }
 
     @Test
-    @DisplayName("카카오 로그인 시작 요청은 state를 담아 카카오 인가 페이지로 302 리다이렉트한다")
+    @DisplayName("카카오 로그인 시작 요청은 카카오 인가 페이지로 302 리다이렉트한다")
     void redirectToKakao() throws Exception {
-        MockHttpServletResponse response = mockMvc.perform(get("/api/v1/auth/kakao"))
+        mockMvc.perform(get("/api/v1/auth/kakao"))
                 .andExpect(status().isFound())
                 .andExpect(header().string(HttpHeaders.LOCATION, containsString("https://kauth.kakao.com/oauth/authorize")))
                 .andExpect(header().string(HttpHeaders.LOCATION, containsString("client_id=test-client-id")))
-                .andExpect(cookie().httpOnly("oauth_state", true))
-                .andReturn().getResponse();
-
-        String state = response.getCookie("oauth_state").getValue();
-        assertTrue(response.getHeader(HttpHeaders.LOCATION).contains("state=" + state));
+                .andExpect(header().string(HttpHeaders.LOCATION, containsString("response_type=code")));
     }
 
     @Test
-    @DisplayName("콜백의 state가 쿠키에 저장한 값과 다르면 카카오에 요청하지 않고 400을 반환한다")
-    void kakaoCallbackWithWrongState() throws Exception {
-        mockMvc.perform(get("/api/v1/auth/kakao/callback")
-                        .param("code", "any-code")
-                        .param("state", "attacker-state")
-                        .cookie(new Cookie("oauth_state", "my-state")))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_OAUTH_STATE"));
-
-        mockMvc.perform(get("/api/v1/auth/kakao/callback").param("code", "any-code"))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.code").value("INVALID_OAUTH_STATE"));
+    @DisplayName("카카오 콜백에 인가 코드가 없으면 401을 반환한다")
+    void kakaoCallbackWithoutCode() throws Exception {
+        mockMvc.perform(get("/api/v1/auth/kakao/callback"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").value("SOCIAL_LOGIN_FAILED"));
     }
 
     private MockHttpServletResponse login() throws Exception {

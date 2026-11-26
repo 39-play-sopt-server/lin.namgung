@@ -98,8 +98,8 @@ class KakaoLoginServiceTest {
         private int calls;
 
         @Override
-        public String getAuthorizationUrl(String state) {
-            return "https://kauth.kakao.com/oauth/authorize?state=" + state;
+        public String getAuthorizationUrl() {
+            return "https://kauth.kakao.com/oauth/authorize";
         }
 
         @Override

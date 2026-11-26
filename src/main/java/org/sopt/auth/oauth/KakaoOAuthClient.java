@@ -6,7 +6,7 @@ package org.sopt.auth.oauth;
  */
 public interface KakaoOAuthClient {
 
-    String getAuthorizationUrl(String state);
+    String getAuthorizationUrl();
 
     KakaoUserInfo getUserInfo(String authorizationCode);
 }
