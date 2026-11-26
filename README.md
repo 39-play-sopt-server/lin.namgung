@@ -17,3 +17,12 @@
 - `main`에 병합되면 GitHub Actions가 테스트, 이미지 빌드, EC2 배포를 자동으로 실행합니다.
 - 허용할 Origin은 환경 변수 `CORS_ALLOWED_ORIGINS`(쉼표 구분)로 설정합니다.
 - 설정 방법은 [docs/deploy.md](docs/deploy.md)에 정리했습니다.
+
+## 인증과 인가 (6차 과제)
+
+- 이메일 회원가입과 로그인, 카카오 로그인을 Spring Security와 JWT로 구현했습니다.
+- Access Token(30분)은 응답 본문으로, Refresh Token(14일)은 `HttpOnly`, `Secure` 쿠키로 발급합니다.
+- 재발급할 때마다 Refresh Token을 새로 바꾸고(Rotation), DB에는 해시만 저장합니다.
+- 게시글 조회는 누구나 할 수 있고, 작성·좋아요는 로그인이 필요합니다. 수정·삭제는 작성자 본인만 할 수 있습니다.
+- 실행에 필요한 환경 변수: `JWT_SECRET` (필수, `openssl rand -base64 32`), `KAKAO_CLIENT_ID` (카카오 로그인 시)
+- API 목록, 로컬 테스트 순서, 카카오 설정 방법은 [docs/auth.md](docs/auth.md)에 정리했습니다.
