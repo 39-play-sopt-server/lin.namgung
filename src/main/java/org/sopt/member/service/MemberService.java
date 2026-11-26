@@ -1,5 +1,6 @@
 package org.sopt.member.service;
 
+import org.sopt.auth.repository.RefreshTokenRepository;
 import org.sopt.member.domain.Member;
 import org.sopt.member.dto.response.MemberResponse;
 import org.sopt.member.exception.MemberNotFoundException;
@@ -10,9 +11,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class MemberService {
     private final MemberRepository memberRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
-    public MemberService(MemberRepository memberRepository) {
+    public MemberService(MemberRepository memberRepository, RefreshTokenRepository refreshTokenRepository) {
         this.memberRepository = memberRepository;
+        this.refreshTokenRepository = refreshTokenRepository;
     }
 
     @Transactional(readOnly = true)
@@ -23,6 +26,7 @@ public class MemberService {
     @Transactional
     public void withdrawMember(Long memberId) {
         findActiveMember(memberId).delete();
+        refreshTokenRepository.deleteAllByMemberId(memberId);
     }
 
     private Member findActiveMember(Long memberId) {

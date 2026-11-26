@@ -2,6 +2,8 @@ package org.sopt.member.service;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.sopt.auth.domain.RefreshToken;
+import org.sopt.auth.repository.RefreshTokenRepository;
 import org.sopt.member.domain.Member;
 import org.sopt.member.dto.response.MemberResponse;
 import org.sopt.member.exception.MemberNotFoundException;
@@ -9,6 +11,8 @@ import org.sopt.member.repository.MemberRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -22,6 +26,9 @@ class MemberServiceTest {
 
     @Autowired
     private MemberRepository memberRepository;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Test
     @DisplayName("회원 정보를 조회하면 id, 이름, 이메일을 반환한다")
@@ -55,6 +62,18 @@ class MemberServiceTest {
 
         assertTrue(memberRepository.findById(member.getId()).orElseThrow().isDeleted());
         assertTrue(memberRepository.findByIdAndDeletedFalse(member.getId()).isEmpty());
+    }
+
+    @Test
+    @DisplayName("탈퇴하면 그 회원의 Refresh Token을 모두 지워 더 이상 재발급받지 못하게 한다")
+    void withdrawDeletesRefreshTokens() {
+        Member member = memberRepository.save(Member.create("린"));
+        refreshTokenRepository.save(RefreshToken.issue(member.getId(), "phone", LocalDateTime.now().plusDays(1)));
+        refreshTokenRepository.save(RefreshToken.issue(member.getId(), "laptop", LocalDateTime.now().plusDays(1)));
+
+        memberService.withdrawMember(member.getId());
+
+        assertEquals(0, refreshTokenRepository.countByMemberId(member.getId()));
     }
 
     @Test

@@ -13,6 +13,8 @@ public enum SuccessCode implements ResponseCode {
     MEMBER_CREATED(HttpStatus.CREATED, "회원가입이 완료되었습니다."),
     MEMBER_READ(HttpStatus.OK, "내 정보 조회에 성공했습니다."),
     LOGIN_SUCCESS(HttpStatus.OK, "로그인에 성공했습니다."),
+    TOKEN_REISSUED(HttpStatus.OK, "토큰이 재발급되었습니다."),
+    LOGOUT_SUCCESS(HttpStatus.OK, "로그아웃되었습니다."),
     MEMBER_DELETED(HttpStatus.OK, "회원 탈퇴가 완료되었습니다.");
 
     private final HttpStatus status;

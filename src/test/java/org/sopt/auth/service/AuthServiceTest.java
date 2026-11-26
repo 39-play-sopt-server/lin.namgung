@@ -2,7 +2,9 @@ package org.sopt.auth.service;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.sopt.auth.domain.RefreshToken;
 import org.sopt.auth.exception.AuthException;
+import org.sopt.auth.repository.RefreshTokenRepository;
 import org.sopt.auth.jwt.JwtProvider;
 import org.sopt.global.exception.ErrorCode;
 import org.sopt.member.domain.Member;
@@ -12,6 +14,8 @@ import org.sopt.member.repository.MemberRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -32,6 +36,9 @@ class AuthServiceTest {
 
     @Autowired
     private JwtProvider jwtProvider;
+
+    @Autowired
+    private RefreshTokenRepository refreshTokenRepository;
 
     @Test
     @DisplayName("회원가입하면 비밀번호를 평문이 아닌 BCrypt 해시로 저장한다")
@@ -98,6 +105,85 @@ class AuthServiceTest {
         memberRepository.flush();
 
         assertErrorCode(ErrorCode.LOGIN_FAILED, () -> authService.login(EMAIL, PASSWORD));
+    }
+
+    @Test
+    @DisplayName("로그인하면 Refresh Token을 발급하고 DB에는 원문이 아닌 해시만 저장한다")
+    void loginStoresHashedRefreshToken() {
+        authService.signup(EMAIL, PASSWORD, "린");
+
+        AuthTokens tokens = authService.login(EMAIL, PASSWORD);
+
+        assertTrue(refreshTokenRepository.findByTokenHash(tokens.refreshToken()).isEmpty());
+        assertTrue(refreshTokenRepository.findByTokenHash(RefreshToken.hash(tokens.refreshToken())).isPresent());
+    }
+
+    @Test
+    @DisplayName("Refresh Token으로 재발급하면 새 토큰 쌍을 주고, 사용한 토큰은 다시 쓸 수 없다")
+    void reissueRotatesRefreshToken() {
+        Long memberId = authService.signup(EMAIL, PASSWORD, "린").id();
+        AuthTokens first = authService.login(EMAIL, PASSWORD);
+
+        AuthTokens second = authService.reissue(first.refreshToken());
+
+        assertEquals(memberId, jwtProvider.getMemberId(second.accessToken()));
+        assertNotEquals(first.refreshToken(), second.refreshToken());
+        assertErrorCode(ErrorCode.INVALID_REFRESH_TOKEN, () -> authService.reissue(first.refreshToken()));
+        assertEquals(memberId, jwtProvider.getMemberId(authService.reissue(second.refreshToken()).accessToken()));
+    }
+
+    @Test
+    @DisplayName("없거나 모르는 Refresh Token으로는 재발급할 수 없다")
+    void reissueWithUnknownToken() {
+        assertErrorCode(ErrorCode.INVALID_REFRESH_TOKEN, () -> authService.reissue(null));
+        assertErrorCode(ErrorCode.INVALID_REFRESH_TOKEN, () -> authService.reissue(" "));
+        assertErrorCode(ErrorCode.INVALID_REFRESH_TOKEN, () -> authService.reissue("unknown-token"));
+    }
+
+    @Test
+    @DisplayName("만료된 Refresh Token으로는 재발급할 수 없다")
+    void reissueWithExpiredToken() {
+        Long memberId = authService.signup(EMAIL, PASSWORD, "린").id();
+        refreshTokenRepository.save(RefreshToken.issue(memberId, "expired-token", LocalDateTime.now().minusMinutes(1)));
+
+        assertErrorCode(ErrorCode.EXPIRED_REFRESH_TOKEN, () -> authService.reissue("expired-token"));
+    }
+
+    @Test
+    @DisplayName("탈퇴한 회원의 Refresh Token으로는 재발급할 수 없다")
+    void reissueAfterWithdraw() {
+        Long memberId = authService.signup(EMAIL, PASSWORD, "린").id();
+        refreshTokenRepository.save(RefreshToken.issue(memberId, "left-token", LocalDateTime.now().plusDays(1)));
+        memberRepository.findById(memberId).orElseThrow().delete();
+        memberRepository.flush();
+
+        assertErrorCode(ErrorCode.INVALID_REFRESH_TOKEN, () -> authService.reissue("left-token"));
+    }
+
+    @Test
+    @DisplayName("로그아웃하면 해당 Refresh Token은 더 이상 재발급에 쓸 수 없고, 반복 호출해도 에러가 나지 않는다")
+    void logout() {
+        authService.signup(EMAIL, PASSWORD, "린");
+        AuthTokens tokens = authService.login(EMAIL, PASSWORD);
+
+        authService.logout(tokens.refreshToken());
+        authService.logout(tokens.refreshToken());
+        authService.logout(null);
+
+        assertErrorCode(ErrorCode.INVALID_REFRESH_TOKEN, () -> authService.reissue(tokens.refreshToken()));
+    }
+
+    @Test
+    @DisplayName("여러 기기에서 로그인하면 기기마다 Refresh Token이 따로 저장된다")
+    void loginFromMultipleDevices() {
+        Long memberId = authService.signup(EMAIL, PASSWORD, "린").id();
+
+        AuthTokens phone = authService.login(EMAIL, PASSWORD);
+        AuthTokens laptop = authService.login(EMAIL, PASSWORD);
+        authService.logout(phone.refreshToken());
+
+        assertEquals(1, refreshTokenRepository.countByMemberId(memberId));
+        assertEquals(memberId, jwtProvider.getMemberId(authService.reissue(laptop.refreshToken()).accessToken()));
     }
 
     private void assertErrorCode(ErrorCode expected, Runnable action) {
